@@ -40,11 +40,10 @@ namespace OrchardCore.Search.Lucene.Drivers
                     model.SearchIndexes = (await _luceneIndexSettingsService.GetSettingsAsync()).Select(x => x.IndexName);
                     model.AllowLuceneQueriesInSearch = settings.AllowLuceneQueriesInSearch;
                 }).Location("Content:2#Lucene;15")
-                .Prefix(Prefix)
                 .OnGroup(SearchConstants.SearchSettingsGroupId);
         }
 
-        public override async Task<IDisplayResult> UpdateAsync(LuceneSettings section, BuildEditorContext context)
+        public override async Task<IDisplayResult> UpdateAsync(LuceneSettings section, UpdateEditorContext context)
         {
             if (!SearchConstants.SearchSettingsGroupId.EqualsOrdinalIgnoreCase(context.GroupId))
             {
@@ -67,16 +66,6 @@ namespace OrchardCore.Search.Lucene.Drivers
             section.AllowLuceneQueriesInSearch = model.AllowLuceneQueriesInSearch;
 
             return await EditAsync(section, context);
-        }
-
-        protected override void BuildPrefix(ISite model, string htmlFieldPrefix)
-        {
-            Prefix = typeof(LuceneSettings).Name;
-
-            if (!string.IsNullOrEmpty(htmlFieldPrefix))
-            {
-                Prefix = htmlFieldPrefix + "." + Prefix;
-            }
         }
     }
 }

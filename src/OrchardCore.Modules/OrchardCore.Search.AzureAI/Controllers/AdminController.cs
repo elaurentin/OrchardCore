@@ -12,10 +12,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OrchardCore.Admin;
 using OrchardCore.BackgroundJobs;
 using OrchardCore.ContentManagement;
 using OrchardCore.DisplayManagement;
-using OrchardCore.DisplayManagement.Extensions;
 using OrchardCore.DisplayManagement.Notify;
 using OrchardCore.Indexing;
 using OrchardCore.Navigation;
@@ -27,8 +27,11 @@ using OrchardCore.Settings;
 
 namespace OrchardCore.Search.AzureAI.Controllers;
 
+[Admin("azure-search/{action}/{indexName?}", "AzureAISearch.{action}")]
 public class AdminController : Controller
 {
+    private const string _optionsSearch = "Options.Search";
+
     private readonly ISiteService _siteService;
     private readonly IAuthorizationService _authorizationService;
     private readonly AzureAISearchIndexManager _indexManager;
@@ -82,6 +85,11 @@ public class AdminController : Controller
             return Forbid();
         }
 
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return NotConfigured();
+        }
+
         var indexes = (await _indexSettingsService.GetSettingsAsync())
             .Select(i => new IndexViewModel { Name = i.IndexName })
             .ToList();
@@ -98,22 +106,22 @@ public class AdminController : Controller
 
         indexes = indexes
             .Skip(pager.GetStartIndex())
-            .Take(pager.PageSize).ToList();
+            .Take(pager.PageSize)
+            .ToList();
 
-        // Maintain previous route data when generating page links.S
-        RouteValueDictionary routeValues = null;
+        // Maintain previous route data when generating page links.
+        var routeData = new RouteData();
 
-        if (!string.IsNullOrWhiteSpace(options.Search))
+        if (!string.IsNullOrEmpty(options.Search))
         {
-            routeValues = [];
-            routeValues.TryAdd("Options.Search", options.Search);
+            routeData.Values.TryAdd(_optionsSearch, options.Search);
         }
 
         var model = new AdminIndexViewModel
         {
             Indexes = indexes,
             Options = options,
-            Pager = await _shapeFactory.PagerAsync(pager, totalIndexes, routeValues)
+            Pager = await _shapeFactory.PagerAsync(pager, totalIndexes, routeData)
         };
 
         model.Options.ContentsBulkAction =
@@ -130,17 +138,22 @@ public class AdminController : Controller
         => RedirectToAction(nameof(Index),
             new RouteValueDictionary
             {
-                { "Options.Search", model.Options.Search }
+                { _optionsSearch, model.Options.Search }
             });
-    
+
 
     [HttpPost, ActionName(nameof(Index))]
     [FormValueRequired("submit.BulkAction")]
-    public async Task<ActionResult> IndexPost(AzureAIIndexOptions options, IEnumerable<string> itemIds)
+    public async Task<IActionResult> IndexPost(AzureAIIndexOptions options, IEnumerable<string> itemIds)
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return BadRequest();
         }
 
         if (itemIds?.Count() > 0)
@@ -169,11 +182,16 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<ActionResult> Create()
+    public async Task<IActionResult> Create()
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return NotConfigured();
         }
 
         var model = new AzureAISettingsViewModel
@@ -187,11 +205,16 @@ public class AdminController : Controller
     }
 
     [HttpPost, ActionName(nameof(Create))]
-    public async Task<ActionResult> CreatePost(AzureAISettingsViewModel model)
+    public async Task<IActionResult> CreatePost(AzureAISettingsViewModel model)
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return BadRequest();
         }
 
         if (ModelState.IsValid && await _indexManager.ExistsAsync(model.IndexName))
@@ -224,13 +247,20 @@ public class AdminController : Controller
                     settings.QueryAnalyzerName = settings.AnalyzerName;
                 }
 
-                settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings.IndexedContentTypes);
-                await _indexManager.CreateAsync(settings);
-                await _indexSettingsService.UpdateAsync(settings);
-                await AsyncContentItemsAsync(settings.IndexName);
-                await _notifier.SuccessAsync(H["Index <em>{0}</em> created successfully.", model.IndexName]);
+                settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings);
 
-                return RedirectToAction(nameof(Index));
+                if (await _indexManager.CreateAsync(settings))
+                {
+                    await _indexSettingsService.UpdateAsync(settings);
+                    await AsyncContentItemsAsync(settings.IndexName);
+                    await _notifier.SuccessAsync(H["Index <em>{0}</em> created successfully.", model.IndexName]);
+
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    await _notifier.ErrorAsync(H["An error occurred while creating the index."]);
+                }
             }
             catch (Exception e)
             {
@@ -244,11 +274,16 @@ public class AdminController : Controller
         return View(model);
     }
 
-    public async Task<ActionResult> Edit(string indexName)
+    public async Task<IActionResult> Edit(string indexName)
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return NotConfigured();
         }
 
         var settings = await _indexSettingsService.GetAsync(indexName);
@@ -283,11 +318,16 @@ public class AdminController : Controller
     }
 
     [HttpPost, ActionName(nameof(Edit))]
-    public async Task<ActionResult> EditPost(AzureAISettingsViewModel model)
+    public async Task<IActionResult> EditPost(AzureAISettingsViewModel model)
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return BadRequest();
         }
 
         if (ModelState.IsValid && !await _indexManager.ExistsAsync(model.IndexName))
@@ -312,6 +352,11 @@ public class AdminController : Controller
                 settings.IndexedContentTypes = model.IndexedContentTypes;
                 settings.Culture = model.Culture ?? string.Empty;
 
+                if (string.IsNullOrEmpty(settings.IndexFullName))
+                {
+                    settings.IndexFullName = _indexManager.GetFullIndexName(settings.IndexName);
+                }
+
                 if (string.IsNullOrEmpty(settings.AnalyzerName))
                 {
                     settings.AnalyzerName = AzureAISearchDefaultOptions.DefaultAnalyzer;
@@ -322,7 +367,7 @@ public class AdminController : Controller
                     settings.QueryAnalyzerName = settings.AnalyzerName;
                 }
 
-                settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings.IndexedContentTypes);
+                settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings);
 
                 if (!await _indexManager.CreateAsync(settings))
                 {
@@ -353,11 +398,16 @@ public class AdminController : Controller
     }
 
     [HttpPost]
-    public async Task<ActionResult> Delete(string indexName)
+    public async Task<IActionResult> Delete(string indexName)
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return BadRequest();
         }
 
         var exists = await _indexManager.ExistsAsync(indexName);
@@ -384,11 +434,16 @@ public class AdminController : Controller
     }
 
     [HttpPost]
-    public async Task<ActionResult> Rebuild(string indexName)
+    public async Task<IActionResult> Rebuild(string indexName)
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return BadRequest();
         }
 
         var settings = await _indexSettingsService.GetAsync(indexName);
@@ -398,12 +453,8 @@ public class AdminController : Controller
             return NotFound();
         }
 
-        if (!await _indexManager.ExistsAsync(indexName))
-        {
-            return NotFound();
-        }
-
-        settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings.IndexedContentTypes);
+        settings.SetLastTaskId(0);
+        settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings);
         await _indexSettingsService.UpdateAsync(settings);
         await _indexManager.RebuildAsync(settings);
         await AsyncContentItemsAsync(settings.IndexName);
@@ -413,11 +464,16 @@ public class AdminController : Controller
     }
 
     [HttpPost]
-    public async Task<ActionResult> Reset(string indexName)
+    public async Task<IActionResult> Reset(string indexName)
     {
         if (!await _authorizationService.AuthorizeAsync(User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
         {
             return Forbid();
+        }
+
+        if (!_azureAIOptions.ConfigurationExists())
+        {
+            return BadRequest();
         }
 
         var settings = await _indexSettingsService.GetAsync(indexName);
@@ -429,17 +485,22 @@ public class AdminController : Controller
 
         if (!await _indexManager.ExistsAsync(indexName))
         {
-            return NotFound();
+            await _notifier.ErrorAsync(H["Unable to reset the <em>{0}</em> index. Try rebuilding it instead.", indexName]);
+
+            return RedirectToAction(nameof(Index));
         }
 
         settings.SetLastTaskId(0);
-        settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings.IndexedContentTypes);
+        settings.IndexMappings = await _azureAIIndexDocumentManager.GetMappingsAsync(settings);
         await _indexSettingsService.UpdateAsync(settings);
         await AsyncContentItemsAsync(settings.IndexName);
         await _notifier.SuccessAsync(H["Index <em>{0}</em> reset successfully.", indexName]);
 
         return RedirectToAction(nameof(Index));
     }
+
+    private ViewResult NotConfigured()
+        => View("NotConfigured");
 
     private static Task AsyncContentItemsAsync(string indexName)
         => HttpBackgroundJob.ExecuteAfterEndOfRequestAsync("sync-content-items-azure-ai-" + indexName, async (scope) =>

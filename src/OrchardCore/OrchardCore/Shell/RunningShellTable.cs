@@ -11,7 +11,7 @@ namespace OrchardCore.Environment.Shell
     {
         private ImmutableDictionary<string, ShellSettings> _shellsByHostAndPrefix = ImmutableDictionary<string, ShellSettings>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
         private ShellSettings _default;
-        private bool _hasStarMapping = false;
+        private bool _hasStarMapping;
 
         public void Add(ShellSettings settings)
         {
@@ -163,7 +163,7 @@ namespace OrchardCore.Environment.Shell
 
             if (string.IsNullOrWhiteSpace(shellSettings.RequestUrlHost))
             {
-                return new string[] { "/" + shellSettings.RequestUrlPrefix };
+                return ["/" + shellSettings.RequestUrlPrefix];
             }
 
             return shellSettings

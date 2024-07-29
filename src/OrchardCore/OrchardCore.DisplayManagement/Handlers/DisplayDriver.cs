@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using OrchardCore.DisplayManagement.ModelBinding;
 using OrchardCore.DisplayManagement.Views;
@@ -13,49 +12,62 @@ namespace OrchardCore.DisplayManagement.Handlers
         where TEditorContext : BuildEditorContext
         where TUpdateContext : UpdateEditorContext
     {
+        protected static readonly string ModelName = typeof(TModel).Name;
+
         /// <summary>
-        /// Returns <c>true</c> if the model can be handle by the current driver.
+        /// Returns <see langword="true"/> if the model can be handled by the current driver.
         /// </summary>
-        /// <returns></returns>
+        /// <remarks>
+        /// Override <see cref="CanHandleModelAsync(TModel)"/> instead if your code is asynchronous.
+        /// </remarks>
         public virtual bool CanHandleModel(TModel model)
         {
             return true;
         }
 
-        Task<IDisplayResult> IDisplayDriver<TModel, TDisplayContext, TEditorContext, TUpdateContext>.BuildDisplayAsync(TModel model, TDisplayContext context)
+        /// <summary>
+        /// Returns <see langword="true"/> if the model can be handled by the current driver.
+        /// </summary>
+        /// <remarks>
+        /// Override <see cref="CanHandleModel(TModel)"/> instead if your code is synchronous.
+        /// </remarks>
+        public virtual Task<bool> CanHandleModelAsync(TModel model)
+            => Task.FromResult(CanHandleModel(model));
+
+        async Task<IDisplayResult> IDisplayDriver<TModel, TDisplayContext, TEditorContext, TUpdateContext>.BuildDisplayAsync(TModel model, TDisplayContext context)
         {
-            if (!CanHandleModel(model))
+            if (!await CanHandleModelAsync(model))
             {
-                return Task.FromResult<IDisplayResult>(null);
+                return null;
             }
 
             BuildPrefix(model, context.HtmlFieldPrefix);
 
-            return DisplayAsync(model, context);
+            return await DisplayAsync(model, context);
         }
 
-        Task<IDisplayResult> IDisplayDriver<TModel, TDisplayContext, TEditorContext, TUpdateContext>.BuildEditorAsync(TModel model, TEditorContext context)
+        async Task<IDisplayResult> IDisplayDriver<TModel, TDisplayContext, TEditorContext, TUpdateContext>.BuildEditorAsync(TModel model, TEditorContext context)
         {
-            if (!CanHandleModel(model))
+            if (!await CanHandleModelAsync(model))
             {
-                return Task.FromResult<IDisplayResult>(null);
+                return null;
             }
 
             BuildPrefix(model, context.HtmlFieldPrefix);
 
-            return EditAsync(model, context);
+            return await EditAsync(model, context);
         }
 
-        Task<IDisplayResult> IDisplayDriver<TModel, TDisplayContext, TEditorContext, TUpdateContext>.UpdateEditorAsync(TModel model, TUpdateContext context)
+        async Task<IDisplayResult> IDisplayDriver<TModel, TDisplayContext, TEditorContext, TUpdateContext>.UpdateEditorAsync(TModel model, TUpdateContext context)
         {
-            if (!CanHandleModel(model))
+            if (!await CanHandleModelAsync(model))
             {
-                return Task.FromResult<IDisplayResult>(null);
+                return null;
             }
 
             BuildPrefix(model, context.HtmlFieldPrefix);
 
-            return UpdateAsync(model, context);
+            return await UpdateAsync(model, context);
         }
 
         public virtual Task<IDisplayResult> DisplayAsync(TModel model, TDisplayContext context)
@@ -93,6 +105,11 @@ namespace OrchardCore.DisplayManagement.Handlers
             return Edit(model);
         }
 
+        public virtual IDisplayResult Edit(TModel model, TEditorContext context)
+        {
+            return Edit(model, context.Updater);
+        }
+
         public virtual IDisplayResult Edit(TModel model)
         {
             return NullShapeResult();
@@ -115,11 +132,13 @@ namespace OrchardCore.DisplayManagement.Handlers
 
         protected virtual void BuildPrefix(TModel model, string htmlFieldPrefix)
         {
-            Prefix = typeof(TModel).Name;
-
             if (!string.IsNullOrEmpty(htmlFieldPrefix))
             {
-                Prefix = htmlFieldPrefix + "." + Prefix;
+                Prefix = $"{htmlFieldPrefix}.{ModelName}";
+            }
+            else
+            {
+                Prefix = ModelName;
             }
         }
     }

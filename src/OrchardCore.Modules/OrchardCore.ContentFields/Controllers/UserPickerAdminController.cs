@@ -15,7 +15,7 @@ using OrchardCore.Modules;
 
 namespace OrchardCore.ContentFields.Controllers
 {
-    [RequireFeatures("OrchardCore.Users")]
+    [RequireFeatures(OrchardCore.Users.UserConstants.Features.Users)]
     [Admin]
     public class UserPickerAdminController : Controller
     {
@@ -37,6 +37,7 @@ namespace OrchardCore.ContentFields.Controllers
             _resultProviders = resultProviders;
         }
 
+        [Admin("ContentFields/SearchUsers", "SearchUsers")]
         public async Task<IActionResult> SearchUsers(string part, string field, string contentType, string query)
         {
             if (string.IsNullOrWhiteSpace(part) || string.IsNullOrWhiteSpace(field) || string.IsNullOrWhiteSpace(contentType))

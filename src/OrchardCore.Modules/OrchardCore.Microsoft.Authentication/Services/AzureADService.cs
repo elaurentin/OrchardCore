@@ -22,11 +22,8 @@ namespace OrchardCore.Microsoft.Authentication.Services
             S = stringLocalizer;
         }
 
-        public async Task<AzureADSettings> GetSettingsAsync()
-        {
-            var container = await _siteService.GetSiteSettingsAsync();
-            return container.As<AzureADSettings>();
-        }
+        public Task<AzureADSettings> GetSettingsAsync()
+            => _siteService.GetSettingsAsync<AzureADSettings>();
 
         public async Task<AzureADSettings> LoadSettingsAsync()
         {
@@ -36,13 +33,10 @@ namespace OrchardCore.Microsoft.Authentication.Services
 
         public async Task UpdateSettingsAsync(AzureADSettings settings)
         {
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+            ArgumentNullException.ThrowIfNull(settings);
 
             var container = await _siteService.LoadSiteSettingsAsync();
-            container.Alter<AzureADSettings>(nameof(AzureADSettings), aspect =>
+            container.Alter<AzureADSettings>(aspect =>
             {
                 aspect.AppId = settings.AppId;
                 aspect.CallbackPath = settings.CallbackPath;
@@ -55,10 +49,7 @@ namespace OrchardCore.Microsoft.Authentication.Services
 
         public IEnumerable<ValidationResult> ValidateSettings(AzureADSettings settings)
         {
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+            ArgumentNullException.ThrowIfNull(settings);
 
             if (string.IsNullOrWhiteSpace(settings.DisplayName))
             {

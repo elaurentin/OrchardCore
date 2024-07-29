@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using OrchardCore.BackgroundJobs;
@@ -9,9 +10,9 @@ using OrchardCore.Recipes.Services;
 namespace OrchardCore.Search.Lucene.Recipes
 {
     /// <summary>
-    /// This recipe step rebuilds a lucene index.
+    /// This recipe step rebuilds a Lucene index.
     /// </summary>
-    public class LuceneIndexRebuildStep : IRecipeStepHandler
+    public sealed class LuceneIndexRebuildStep : IRecipeStepHandler
     {
         public async Task ExecuteAsync(RecipeExecutionContext context)
         {
@@ -29,7 +30,9 @@ namespace OrchardCore.Search.Lucene.Recipes
                     var luceneIndexSettingsService = scope.ServiceProvider.GetRequiredService<LuceneIndexSettingsService>();
                     var luceneIndexingService = scope.ServiceProvider.GetRequiredService<LuceneIndexingService>();
 
-                    var indices = model.IncludeAll ? (await luceneIndexSettingsService.GetSettingsAsync()).Select(x => x.IndexName).ToArray() : model.Indices;
+                    var indices = model.IncludeAll
+                    ? (await luceneIndexSettingsService.GetSettingsAsync()).Select(x => x.IndexName).ToArray()
+                    : model.Indices;
 
                     foreach (var indexName in indices)
                     {
@@ -44,10 +47,10 @@ namespace OrchardCore.Search.Lucene.Recipes
             }
         }
 
-        private class LuceneIndexRebuildStepModel
+        private sealed class LuceneIndexRebuildStepModel
         {
-            public bool IncludeAll { get; set; } = false;
-            public string[] Indices { get; set; } = Array.Empty<string>();
+            public bool IncludeAll { get; set; }
+            public string[] Indices { get; set; } = [];
         }
     }
 }

@@ -15,14 +15,33 @@ using OrchardCore.Modules;
 
 namespace OrchardCore.Setup
 {
-    public class Startup : StartupBase
+    public sealed class Startup : StartupBase
     {
         private readonly string _defaultCulture = CultureInfo.InstalledUICulture.Name;
 
-        private string[] _supportedCultures = new string[]
-        {
-            "ar", "cs", "de", "el", "en", "es", "fa", "fr", "it", "ja", "pl", "pt-BR", "ru", "sv", "tr", "vi", "zh-CN", "zh-TW", "zh-Hans-CN", "zh-Hant-TW"
-        };
+        private string[] _supportedCultures =
+        [
+            "ar",
+            "cs",
+            "de",
+            "el",
+            "en",
+            "es",
+            "fa",
+            "fr",
+            "it",
+            "ja",
+            "pl",
+            "pt-BR",
+            "ru",
+            "sv",
+            "tr",
+            "vi",
+            "zh-CN",
+            "zh-TW",
+            "zh-Hans-CN",
+            "zh-Hant-TW"
+        ];
 
         public Startup(IShellConfiguration shellConfiguration)
         {

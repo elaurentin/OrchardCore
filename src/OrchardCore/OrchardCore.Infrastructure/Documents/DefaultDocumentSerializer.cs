@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using System.Text;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using OrchardCore.Data.Documents;
 
 namespace OrchardCore.Documents
@@ -13,22 +13,19 @@ namespace OrchardCore.Documents
     /// </summary>
     public class DefaultDocumentSerializer : IDocumentSerializer
     {
-        public static readonly DefaultDocumentSerializer Instance = new();
+        private static readonly byte[] _gZipHeaderBytes = [0x1f, 0x8b];
 
-        private static readonly JsonSerializerSettings _jsonSettings = new()
-        {
-            TypeNameHandling = TypeNameHandling.Auto,
-            DateTimeZoneHandling = DateTimeZoneHandling.Utc
-        };
+        private readonly JsonSerializerOptions _serializerOptions;
 
-        public DefaultDocumentSerializer()
+        public DefaultDocumentSerializer(JsonSerializerOptions serializerOptions)
         {
+            _serializerOptions = serializerOptions;
         }
 
-        public Task<byte[]> SerializeAsync<TDocument>(TDocument document, int compressThreshold = int.MaxValue) where TDocument : class, IDocument, new()
+        public Task<byte[]> SerializeAsync<TDocument>(TDocument document, int compressThreshold = int.MaxValue)
+            where TDocument : class, IDocument, new()
         {
-            var data = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(document, _jsonSettings));
-
+            var data = JsonSerializer.SerializeToUtf8Bytes(document, _serializerOptions);
             if (data.Length >= compressThreshold)
             {
                 data = Compress(data);
@@ -37,36 +34,31 @@ namespace OrchardCore.Documents
             return Task.FromResult(data);
         }
 
-        public Task<TDocument> DeserializeAsync<TDocument>(byte[] data) where TDocument : class, IDocument, new()
+        public Task<TDocument> DeserializeAsync<TDocument>(byte[] data)
+            where TDocument : class, IDocument, new()
         {
             if (IsCompressed(data))
             {
                 data = Decompress(data);
             }
 
-            var document = JsonConvert.DeserializeObject<TDocument>(Encoding.UTF8.GetString(data), _jsonSettings);
+            using var ms = new MemoryStream(data);
+
+            var document = JsonSerializer.Deserialize<TDocument>(ms, _serializerOptions);
 
             return Task.FromResult(document);
         }
 
-        private static readonly byte[] _gZipHeaderBytes = { 0x1f, 0x8b };
-
         internal static bool IsCompressed(byte[] data)
         {
-            if (data.Length < _gZipHeaderBytes.Length)
+            // Ensure data is at least as long as the GZip header
+            if (data.Length >= _gZipHeaderBytes.Length)
             {
-                return false;
+                // Compare the header bytes.
+                return data.Take(_gZipHeaderBytes.Length).SequenceEqual(_gZipHeaderBytes);
             }
 
-            for (var i = 0; i < _gZipHeaderBytes.Length; i++)
-            {
-                if (data[i] != _gZipHeaderBytes[i])
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return false;
         }
 
         internal static byte[] Compress(byte[] data)
@@ -76,6 +68,11 @@ namespace OrchardCore.Documents
             using (var gzip = new GZipStream(output, CompressionMode.Compress))
             {
                 input.CopyTo(gzip);
+            }
+
+            if (output.TryGetBuffer(out var buffer))
+            {
+                return buffer.Array;
             }
 
             return output.ToArray();
@@ -88,6 +85,11 @@ namespace OrchardCore.Documents
             using (var gzip = new GZipStream(input, CompressionMode.Decompress))
             {
                 gzip.CopyTo(output);
+            }
+
+            if (output.TryGetBuffer(out var buffer))
+            {
+                return buffer.Array;
             }
 
             return output.ToArray();

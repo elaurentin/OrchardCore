@@ -19,7 +19,7 @@ using OrchardCore.Security.Permissions;
 
 namespace OrchardCore.AdminDashboard
 {
-    public class Startup : StartupBase
+    public sealed class Startup : StartupBase
     {
         public override int ConfigureOrder => -10;
 
@@ -55,13 +55,6 @@ namespace OrchardCore.AdminDashboard
                 areaName: "OrchardCore.AdminDashboard",
                 pattern: _adminOptions.AdminUrlPrefix,
                 defaults: new { controller = dashboardControllerName, action = nameof(DashboardController.Index) }
-            );
-
-            routes.MapAreaControllerRoute(
-                name: "AdminDashboard",
-                areaName: "OrchardCore.AdminDashboard",
-                pattern: $"{_adminOptions.AdminUrlPrefix}/dashboard/manage",
-                defaults: new { controller = dashboardControllerName, action = nameof(DashboardController.Manage) }
             );
         }
     }

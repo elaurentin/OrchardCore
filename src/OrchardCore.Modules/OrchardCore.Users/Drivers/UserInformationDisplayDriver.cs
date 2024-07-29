@@ -1,4 +1,3 @@
-using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -6,7 +5,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Localization;
 using OrchardCore.DisplayManagement.Handlers;
 using OrchardCore.DisplayManagement.Views;
-using OrchardCore.Entities;
 using OrchardCore.Mvc.ModelBinding;
 using OrchardCore.Settings;
 using OrchardCore.Sms;
@@ -44,8 +42,7 @@ namespace OrchardCore.Users.Drivers
                 return null;
             }
 
-            var site = await _siteService.GetSiteSettingsAsync();
-            var settings = site.As<LoginSettings>();
+            var settings = await _siteService.GetSettingsAsync<LoginSettings>();
             var canEditUserInfo = await CanEditUserInfoAsync(user);
             return Combine(
                 Initialize<EditUserNameViewModel>("UserName_Edit", model =>
@@ -94,32 +91,28 @@ namespace OrchardCore.Users.Drivers
 
             if (context.IsNew)
             {
-                if (await context.Updater.TryUpdateModelAsync(userNameModel, Prefix))
-                {
-                    user.UserName = userNameModel.UserName;
-                }
+                await context.Updater.TryUpdateModelAsync(userNameModel, Prefix);
 
-                if (await context.Updater.TryUpdateModelAsync(emailModel, Prefix))
-                {
-                    user.Email = emailModel.Email;
-                }
+                user.UserName = userNameModel.UserName;
 
-                if (await context.Updater.TryUpdateModelAsync(phoneNumberModel, Prefix))
+                await context.Updater.TryUpdateModelAsync(emailModel, Prefix);
+
+                user.Email = emailModel.Email;
+
+                await context.Updater.TryUpdateModelAsync(phoneNumberModel, Prefix);
+
+                if (!string.IsNullOrEmpty(phoneNumberModel.PhoneNumber) && !_phoneFormatValidator.IsValid(phoneNumberModel.PhoneNumber))
                 {
-                    if (!string.IsNullOrEmpty(phoneNumberModel.PhoneNumber) && !_phoneFormatValidator.IsValid(phoneNumberModel.PhoneNumber))
-                    {
-                        context.Updater.ModelState.AddModelError(Prefix, nameof(phoneNumberModel.PhoneNumber), S["Please provide a valid phone number."]);
-                    }
-                    else
-                    {
-                        user.PhoneNumber = phoneNumberModel.PhoneNumber;
-                    }
+                    context.Updater.ModelState.AddModelError(Prefix, nameof(phoneNumberModel.PhoneNumber), S["Please provide a valid phone number."]);
+                }
+                else
+                {
+                    user.PhoneNumber = phoneNumberModel.PhoneNumber;
                 }
             }
             else
             {
-                var site = await _siteService.GetSiteSettingsAsync();
-                var settings = site.As<LoginSettings>();
+                var settings = await _siteService.GetSettingsAsync<LoginSettings>();
 
                 if (await CanEditUserInfoAsync(user))
                 {

@@ -120,14 +120,14 @@ namespace OrchardCore.Setup.Services
 
             // Features to enable for Setup.
             string[] coreFeatures =
-            {
+            [
                 _applicationName,
                 "OrchardCore.Features",
                 "OrchardCore.Scripting",
                 "OrchardCore.Recipes"
-            };
+            ];
 
-            context.EnabledFeatures = coreFeatures.Union(context.EnabledFeatures ?? Enumerable.Empty<string>()).Distinct().ToList();
+            context.EnabledFeatures = coreFeatures.Union(context.EnabledFeatures ?? []).Distinct().ToList();
 
             // Set shell state to "Initializing" so that subsequent HTTP requests are responded to with "Service Unavailable" while Orchard is setting up.
             context.ShellSettings.AsInitializing();
@@ -161,6 +161,11 @@ namespace OrchardCore.Setup.Services
                 shellSettings["Schema"] = context.Properties.TryGetValue(SetupConstants.DatabaseSchema, out var schema) ? schema?.ToString() : null;
             }
 
+            if (shellSettings["DatabaseProvider"] == DatabaseProviderValue.Sqlite && string.IsNullOrEmpty(shellSettings["DatabaseName"]))
+            {
+                shellSettings["DatabaseName"] = context.Properties.TryGetValue(SetupConstants.DatabaseName, out var dbName) ? dbName?.ToString() : "OrchardCore.db";
+            }
+
             var validationContext = new DbConnectionValidatorContext(shellSettings);
             switch (await _dbConnectionValidator.ValidateAsync(validationContext))
             {
@@ -172,6 +177,9 @@ namespace OrchardCore.Setup.Services
                     break;
                 case DbConnectionValidatorResult.InvalidConnection:
                     context.Errors.Add(string.Empty, S["The provided connection string is invalid or server is unreachable."]);
+                    break;
+                case DbConnectionValidatorResult.InvalidCertificate:
+                    context.Errors.Add(string.Empty, S["The security certificate on the server is from a non-trusted source (the certificate issuing authority isn't listed as a trusted authority in Trusted Root Certification Authorities on the client machine). In a development environment, you have the option to use the '{0}' parameter in your connection string to bypass the validation performed by the certificate authority.", "TrustServerCertificate=True"]);
                     break;
                 case DbConnectionValidatorResult.DocumentTableFound:
                     context.Errors.Add(string.Empty, S["The provided database, table prefix and schema are already in use."]);
@@ -219,8 +227,22 @@ namespace OrchardCore.Setup.Services
                 executionId = Guid.NewGuid().ToString("n");
 
                 var recipeExecutor = shellContext.ServiceProvider.GetRequiredService<IRecipeExecutor>();
+                try
+                {
+                    await recipeExecutor.ExecuteAsync(executionId, context.Recipe, context.Properties, _applicationLifetime.ApplicationStopping);
+                }
+                catch (RecipeExecutionException e)
+                {
+                    _logger.LogError(e, "Unable to import a recipe during setup.");
 
-                await recipeExecutor.ExecuteAsync(executionId, context.Recipe, context.Properties, _applicationLifetime.ApplicationStopping);
+                    context.Errors.Add(string.Empty, string.Join(' ', e.StepResult.Errors));
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Unable to import a recipe during setup.");
+
+                    context.Errors.Add(string.Empty, S["Unexpected error occurred while importing the recipe."]);
+                }
             }
 
             // Reloading the shell context as the recipe has probably updated its features.

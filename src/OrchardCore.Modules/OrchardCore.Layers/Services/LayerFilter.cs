@@ -15,11 +15,11 @@ using OrchardCore.Layers.Handlers;
 using OrchardCore.Layers.Models;
 using OrchardCore.Layers.ViewModels;
 using OrchardCore.Mvc.Utilities;
-using OrchardCore.Rules;
+using OrchardCore.Rules.Services;
 
 namespace OrchardCore.Layers.Services
 {
-    public class LayerFilter : IAsyncResultFilter
+    public sealed class LayerFilter : IAsyncResultFilter
     {
         private const string WidgetsKey = "OrchardCore.Layers.LayerFilter:AllWidgets";
         private readonly IContentDefinitionManager _contentDefinitionManager;
@@ -143,7 +143,7 @@ namespace OrchardCore.Layers.Services
             await next.Invoke();
         }
 
-        internal class CacheEntry : Document
+        internal sealed class CacheEntry : Document
         {
             public IEnumerable<LayerMetadata> Widgets { get; set; }
         }

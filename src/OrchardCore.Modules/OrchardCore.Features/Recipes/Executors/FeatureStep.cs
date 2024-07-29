@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using OrchardCore.Environment.Shell;
 using OrchardCore.Recipes.Models;
@@ -10,7 +11,7 @@ namespace OrchardCore.Features.Recipes.Executors
     /// <summary>
     /// This recipe step enables or disables a set of features.
     /// </summary>
-    public class FeatureStep : IRecipeStepHandler
+    public sealed class FeatureStep : IRecipeStepHandler
     {
         private readonly IShellFeaturesManager _shellFeaturesManager;
 
@@ -28,18 +29,18 @@ namespace OrchardCore.Features.Recipes.Executors
 
             var step = context.Step.ToObject<FeatureStepModel>();
 
-            var features = (await _shellFeaturesManager.GetAvailableFeaturesAsync());
+            var features = await _shellFeaturesManager.GetAvailableFeaturesAsync();
 
-            var featuresToDisable = features.Where(x => step.Disable?.Contains(x.Id) == true).ToList();
-            var featuresToEnable = features.Where(x => step.Enable?.Contains(x.Id) == true).ToList();
+            var featuresToDisable = features.Where(x => step.Disable?.Contains(x.Id) == true).ToArray();
+            var featuresToEnable = features.Where(x => step.Enable?.Contains(x.Id) == true).ToArray();
 
-            if (featuresToDisable.Count > 0 || featuresToEnable.Count > 0)
+            if (featuresToDisable.Length > 0 || featuresToEnable.Length > 0)
             {
                 await _shellFeaturesManager.UpdateFeaturesAsync(featuresToDisable, featuresToEnable, true);
             }
         }
 
-        private class FeatureStepModel
+        private sealed class FeatureStepModel
         {
             public string Name { get; set; }
             public string[] Disable { get; set; }

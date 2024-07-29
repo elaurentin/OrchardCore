@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using OrchardCore.OpenId.Abstractions.Descriptors;
 using OrchardCore.OpenId.Abstractions.Managers;
@@ -7,7 +8,7 @@ using OrchardCore.Recipes.Services;
 
 namespace OrchardCore.OpenId.Recipes
 {
-    public class OpenIdScopeStep : IRecipeStepHandler
+    public sealed class OpenIdScopeStep : IRecipeStepHandler
     {
         private readonly IOpenIdScopeManager _scopeManager;
 
@@ -45,8 +46,7 @@ namespace OrchardCore.OpenId.Recipes
             {
                 descriptor.Resources.Clear();
                 descriptor.Resources.UnionWith(
-                    model.Resources
-                        .Split(' ', StringSplitOptions.RemoveEmptyEntries));
+                    model.Resources.Split(' ', StringSplitOptions.RemoveEmptyEntries));
             }
 
             if (isNew)

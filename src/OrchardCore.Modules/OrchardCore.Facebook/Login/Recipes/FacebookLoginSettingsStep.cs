@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using OrchardCore.Facebook.Login.Services;
 using OrchardCore.Facebook.Login.Settings;
@@ -10,7 +11,7 @@ namespace OrchardCore.Facebook.Login.Recipes
     /// <summary>
     /// This recipe step sets general Facebook Login settings.
     /// </summary>
-    public class FacebookLoginSettingsStep : IRecipeStepHandler
+    public sealed class FacebookLoginSettingsStep : IRecipeStepHandler
     {
         private readonly IFacebookLoginService _loginService;
 
@@ -35,7 +36,7 @@ namespace OrchardCore.Facebook.Login.Recipes
         }
     }
 
-    public class FacebookLoginSettingsStepModel
+    public sealed class FacebookLoginSettingsStepModel
     {
         public string CallbackPath { get; set; }
     }

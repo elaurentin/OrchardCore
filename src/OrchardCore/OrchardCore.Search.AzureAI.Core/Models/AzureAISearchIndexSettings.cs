@@ -1,15 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json.Serialization;
 
 namespace OrchardCore.Search.AzureAI.Models;
 
 public class AzureAISearchIndexSettings
 {
-    [JsonIgnore]
     public string IndexName { get; set; }
 
-    [JsonIgnore]
     public string IndexFullName { get; set; }
 
     public string AnalyzerName { get; set; }
@@ -24,7 +21,7 @@ public class AzureAISearchIndexSettings
 
     public IList<AzureAISearchIndexMap> IndexMappings { get; set; }
 
-    private long _lastTaskId = 0;
+    private long _lastTaskId;
 
     public long GetLastTaskId()
         => _lastTaskId;
@@ -33,6 +30,7 @@ public class AzureAISearchIndexSettings
         => _lastTaskId = lastTaskId;
 
     // The dictionary key should be indexingKey Not AzureFieldKey.
-    public Dictionary<string, AzureAISearchIndexMap> GetMaps()
-        => IndexMappings?.ToDictionary(x => x.IndexingKey) ?? [];
+    public Dictionary<string, IEnumerable<AzureAISearchIndexMap>> GetMaps()
+        => IndexMappings.GroupBy(group => group.IndexingKey)
+        .ToDictionary(group => group.Key, group => group.Select(map => map));
 }

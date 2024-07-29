@@ -2,10 +2,8 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using OrchardCore.Entities;
 using OrchardCore.Facebook.Settings;
 using OrchardCore.Settings;
 
@@ -24,11 +22,13 @@ namespace OrchardCore.Facebook
 
         public async Task Invoke(HttpContext httpContext)
         {
+            ArgumentNullException.ThrowIfNull(httpContext);
+
             if (httpContext.Request.Path.StartsWithSegments("/OrchardCore.Facebook/sdk", StringComparison.OrdinalIgnoreCase))
             {
                 var script = default(string);
-                var site = (await _siteService.GetSiteSettingsAsync());
-                var settings = site.As<FacebookSettings>();
+                var settings = await _siteService.GetSettingsAsync<FacebookSettings>();
+
                 if (Path.GetFileName(httpContext.Request.Path.Value) == "fbsdk.js")
                 {
                     var locale = CultureInfo.CurrentUICulture.Name.Replace('-', '_');
@@ -44,14 +44,10 @@ namespace OrchardCore.Facebook
                     if (!string.IsNullOrWhiteSpace(settings?.AppId))
                     {
                         var options = $"{{ appId:'{settings.AppId}',version:'{settings.Version}'";
-                        if (string.IsNullOrWhiteSpace(settings.FBInitParams))
-                        {
-                            options = string.Concat(options, "}");
-                        }
-                        else
-                        {
-                            options = string.Concat(options, ",", settings.FBInitParams, "}");
-                        }
+                        options = string.IsNullOrWhiteSpace(settings.FBInitParams)
+                            ? string.Concat(options, "}")
+                            : string.Concat(options, ",", settings.FBInitParams, "}");
+
                         script = $"window.fbAsyncInit = function(){{ FB.init({options});}};";
                     }
                 }
@@ -59,8 +55,8 @@ namespace OrchardCore.Facebook
                 if (script != null)
                 {
                     var bytes = Encoding.UTF8.GetBytes(script);
-                    var cancellationToken = httpContext?.RequestAborted ?? CancellationToken.None;
-                    await httpContext.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(script).AsMemory(0, bytes.Length), cancellationToken);
+                    await httpContext.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(script).AsMemory(0, bytes.Length), httpContext.RequestAborted);
+
                     return;
                 }
             }

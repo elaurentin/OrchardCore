@@ -8,6 +8,7 @@ using Microsoft.Extensions.Localization;
 using OrchardCore.DisplayManagement.Entities;
 using OrchardCore.DisplayManagement.Handlers;
 using OrchardCore.DisplayManagement.Views;
+using OrchardCore.Environment.Shell;
 using OrchardCore.Modules;
 using OrchardCore.Mvc.ModelBinding;
 using OrchardCore.Search.AzureAI.Models;
@@ -24,6 +25,7 @@ public class AzureAISearchSettingsDisplayDriver : SectionDisplayDriver<ISite, Az
     private readonly AzureAISearchIndexSettingsService _indexSettingsService;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IAuthorizationService _authorizationService;
+    private readonly IShellReleaseManager _shellReleaseManager;
 
     protected readonly IStringLocalizer S;
 
@@ -31,12 +33,14 @@ public class AzureAISearchSettingsDisplayDriver : SectionDisplayDriver<ISite, Az
         AzureAISearchIndexSettingsService indexSettingsService,
         IHttpContextAccessor httpContextAccessor,
         IAuthorizationService authorizationService,
+        IShellReleaseManager shellReleaseManager,
         IStringLocalizer<AzureAISearchSettingsDisplayDriver> stringLocalizer
         )
     {
         _indexSettingsService = indexSettingsService;
         _httpContextAccessor = httpContextAccessor;
         _authorizationService = authorizationService;
+        _shellReleaseManager = shellReleaseManager;
         S = stringLocalizer;
     }
 
@@ -50,10 +54,9 @@ public class AzureAISearchSettingsDisplayDriver : SectionDisplayDriver<ISite, Az
             .ToList();
         }).Location("Content:2#Azure AI Search;5")
         .RenderWhen(() => _authorizationService.AuthorizeAsync(_httpContextAccessor.HttpContext.User, AzureAISearchIndexPermissionHelper.ManageAzureAISearchIndexes))
-        .Prefix(Prefix)
         .OnGroup(SearchConstants.SearchSettingsGroupId);
 
-    public override async Task<IDisplayResult> UpdateAsync(AzureAISearchSettings section, BuildEditorContext context)
+    public override async Task<IDisplayResult> UpdateAsync(AzureAISearchSettings settings, UpdateEditorContext context)
     {
         if (!SearchConstants.SearchSettingsGroupId.EqualsOrdinalIgnoreCase(context.GroupId))
         {
@@ -69,6 +72,7 @@ public class AzureAISearchSettingsDisplayDriver : SectionDisplayDriver<ISite, Az
 
         await context.Updater.TryUpdateModelAsync(model, Prefix);
 
+
         if (string.IsNullOrEmpty(model.SearchIndex))
         {
             context.Updater.ModelState.AddModelError(Prefix, nameof(model.SearchIndex), S["Search Index is required."]);
@@ -83,19 +87,33 @@ public class AzureAISearchSettingsDisplayDriver : SectionDisplayDriver<ISite, Az
             }
         }
 
-        section.SearchIndex = model.SearchIndex;
-        section.DefaultSearchFields = model.SearchFields?.Split(_separator, StringSplitOptions.RemoveEmptyEntries);
+        var fields = model.SearchFields?.Split(_separator, StringSplitOptions.RemoveEmptyEntries);
 
-        return await EditAsync(section, context);
+        if (settings.SearchIndex != model.SearchIndex || !AreTheSame(settings.DefaultSearchFields, fields))
+        {
+            settings.SearchIndex = model.SearchIndex;
+            settings.DefaultSearchFields = fields;
+
+            _shellReleaseManager.RequestRelease();
+        }
+
+        return Edit(settings);
     }
 
-    protected override void BuildPrefix(ISite model, string htmlFieldPrefix)
+    private static bool AreTheSame(string[] a, string[] b)
     {
-        Prefix = typeof(AzureAISearchSettings).Name;
-
-        if (!string.IsNullOrEmpty(htmlFieldPrefix))
+        if (a == null && b == null)
         {
-            Prefix = htmlFieldPrefix + "." + Prefix;
+            return false;
         }
+
+        if ((a is null && b is not null) || (a is not null && b is null))
+        {
+            return true;
+        }
+
+        var combine = a.Intersect(b).ToList();
+
+        return combine.Count == a.Length && combine.Count == b.Length;
     }
 }

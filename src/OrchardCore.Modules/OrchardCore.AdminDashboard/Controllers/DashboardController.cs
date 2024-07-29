@@ -85,6 +85,7 @@ namespace OrchardCore.AdminDashboard.Controllers
             return View(model);
         }
 
+        [Admin("dashboard/manage", "AdminDashboard")]
         public async Task<IActionResult> Manage()
         {
             if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageAdminDashboard))
@@ -149,7 +150,7 @@ namespace OrchardCore.AdminDashboard.Controllers
                 return Unauthorized();
             }
 
-            var contentItemIds = parts.Select(i => i.ContentItemId).ToList();
+            var contentItemIds = parts.Select(i => i.ContentItemId).ToArray();
 
             // Load the latest version first if any.
             var latestItems = await _contentManager.GetAsync(contentItemIds, VersionOptions.Latest);

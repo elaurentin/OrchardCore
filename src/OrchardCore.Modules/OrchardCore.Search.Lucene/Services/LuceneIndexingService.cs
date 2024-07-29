@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OrchardCore.ContentLocalization;
 using OrchardCore.ContentManagement;
-using OrchardCore.Entities;
 using OrchardCore.Environment.Shell;
 using OrchardCore.Indexing;
 using OrchardCore.Modules;
@@ -109,7 +108,7 @@ namespace OrchardCore.Search.Lucene
                     // Load the next batch of tasks.
                     batch = (await _indexingTaskManager.GetIndexingTasksAsync(lastTaskId, BatchSize)).ToArray();
 
-                    if (!batch.Any())
+                    if (batch.Length == 0)
                     {
                         return;
                     }
@@ -128,7 +127,7 @@ namespace OrchardCore.Search.Lucene
 
                     var allPublishedContentItems = await contentManager.GetAsync(updatedContentItemIds);
                     allPublished = allPublishedContentItems.DistinctBy(x => x.ContentItemId).ToDictionary(k => k.ContentItemId, v => v);
-                    var allLatestContentItems = await contentManager.GetAsync(updatedContentItemIds, latest: true);
+                    var allLatestContentItems = await contentManager.GetAsync(updatedContentItemIds, VersionOptions.Latest);
                     allLatest = allLatestContentItems.DistinctBy(x => x.ContentItemId).ToDictionary(k => k.ContentItemId, v => v);
 
                     // Group all DocumentIndex by index to batch update them.
@@ -136,7 +135,7 @@ namespace OrchardCore.Search.Lucene
 
                     foreach (var index in allIndices)
                     {
-                        updatedDocumentsByIndex[index.Key] = new List<DocumentIndex>();
+                        updatedDocumentsByIndex[index.Key] = [];
                     }
 
                     if (indexName != null)
@@ -298,17 +297,6 @@ namespace OrchardCore.Search.Lucene
         }
 
         public async Task<LuceneSettings> GetLuceneSettingsAsync()
-        {
-            var siteSettings = await _siteService.GetSiteSettingsAsync();
-
-            if (siteSettings.Has<LuceneSettings>())
-            {
-                return siteSettings.As<LuceneSettings>();
-            }
-            else
-            {
-                return new LuceneSettings();
-            }
-        }
+            => await _siteService.GetSettingsAsync<LuceneSettings>() ?? new LuceneSettings();
     }
 }

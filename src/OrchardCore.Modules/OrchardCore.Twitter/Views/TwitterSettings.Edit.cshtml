@@ -1,8 +1,8 @@
 @using OrchardCore.Twitter.ViewModels
 @model TwitterSettingsViewModel
 
-<p class="alert alert-warning">
-    @T["The current tenant will be reloaded when the settings are saved."]
+<p class="alert alert-warning" role="alert">
+    @T["The website might be restarted upon saving the settings, potentially leading to temporary unresponsiveness during the process."]
     <a class="seedoc" href="@(OrchardCore.Admin.Constants.DocsUrl)reference/modules/Twitter/#twitter-integration" target="_blank">@T["See documentation"]</a>
 </p>
 
@@ -11,7 +11,7 @@
     <p class="alert alert-danger">@T["An error occurred while decrypting a setting. Please apply and save."]</p>
 }
 
-<h3>@T["Twitter Integration Settings"]</h3>
+<h3>@T["X Integration Settings"]</h3>
 
 <div class="mb-3 row" asp-validation-class-for="APIKey">
     <div class="col-large col-12 col-sm-12 col-md-12 col-lg-12 col-xl-9">

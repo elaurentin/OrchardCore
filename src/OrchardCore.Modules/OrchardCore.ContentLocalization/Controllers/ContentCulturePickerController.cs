@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OrchardCore.ContentLocalization.Models;
 using OrchardCore.ContentLocalization.Services;
-using OrchardCore.Entities;
 using OrchardCore.Localization;
 using OrchardCore.Modules;
 using OrchardCore.Settings;
@@ -48,7 +47,7 @@ namespace OrchardCore.ContentLocalization.Controllers
 
             if (supportedCultures.Any(t => t == targetCulture))
             {
-                var settings = (await _siteService.GetSiteSettingsAsync()).As<ContentCulturePickerSettings>();
+                var settings = await _siteService.GetSettingsAsync<ContentCulturePickerSettings>();
                 if (settings.SetCookie)
                 {
                     _culturePickerService.SetContentCulturePickerCookie(targetCulture);

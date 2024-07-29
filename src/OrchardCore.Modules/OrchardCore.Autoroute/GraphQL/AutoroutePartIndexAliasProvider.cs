@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using OrchardCore.Autoroute.Core.Indexes;
 using OrchardCore.ContentManagement.GraphQL.Queries;
 
@@ -6,19 +7,19 @@ namespace OrchardCore.Autoroute.GraphQL
 {
     public class AutoroutePartIndexAliasProvider : IIndexAliasProvider
     {
-        private static readonly IndexAlias[] _aliases = new[]
-        {
+        private static readonly IndexAlias[] _aliases =
+        [
             new IndexAlias
             {
                 Alias = "autoroutePart",
                 Index = nameof(AutoroutePartIndex),
                 IndexType = typeof(AutoroutePartIndex)
             }
-        };
+        ];
 
-        public IEnumerable<IndexAlias> GetAliases()
+        public ValueTask<IEnumerable<IndexAlias>> GetAliasesAsync()
         {
-            return _aliases;
+            return ValueTask.FromResult<IEnumerable<IndexAlias>>(_aliases);
         }
     }
 }

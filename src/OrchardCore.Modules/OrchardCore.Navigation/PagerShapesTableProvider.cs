@@ -1,3 +1,5 @@
+#pragma warning disable CA1707 // Remove the underscores from member name
+
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -513,7 +515,7 @@ namespace OrchardCore.Navigation
                 }
             }
 
-            var routeValues = shape.GetProperty<RouteValueDictionary>("RouteValues") ?? new RouteValueDictionary();
+            var routeValues = shape.GetProperty<RouteValueDictionary>("RouteValues") ?? [];
             if (!Disabled)
             {
                 shape.Attributes["href"] = Url.Action((string)routeValues["action"], (string)routeValues["controller"], routeValues);

@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Cysharp.Text;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,7 @@ namespace OrchardCore.Recipes.RecipeSteps
     /// <summary>
     /// This recipe step executes a set of commands.
     /// </summary>
-    public class CommandStep : IRecipeStepHandler
+    public sealed class CommandStep : IRecipeStepHandler
     {
         private readonly ICommandManager _commandManager;
         private readonly ICommandParser _commandParser;
@@ -41,19 +42,22 @@ namespace OrchardCore.Recipes.RecipeSteps
 
             foreach (var command in step.Commands)
             {
-                using (var output = new ZStringWriter())
+                await using (var output = new ZStringWriter())
                 {
                     _logger.LogInformation("Executing command: {Command}", command);
+
                     var commandParameters = _commandParameterParser.Parse(_commandParser.Parse(command));
                     commandParameters.Output = output;
                     await _commandManager.ExecuteAsync(commandParameters);
+
                     _logger.LogInformation("Command executed with output: {CommandOutput}", output);
                 }
+
                 _logger.LogInformation("Executed command: {Command}", command);
             }
         }
 
-        private class CommandStepModel
+        private sealed class CommandStepModel
         {
             public string[] Commands { get; set; }
         }

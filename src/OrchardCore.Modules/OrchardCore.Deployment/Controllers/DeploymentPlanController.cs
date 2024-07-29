@@ -22,9 +22,11 @@ using YesSql.Services;
 
 namespace OrchardCore.Deployment.Controllers
 {
-    [Admin]
+    [Admin("DeploymentPlan/{action}/{id?}", "DeploymentPlan{action}")]
     public class DeploymentPlanController : Controller
     {
+        private const string _optionsSearch = "Options.Search";
+
         private readonly IAuthorizationService _authorizationService;
         private readonly IDisplayManager<DeploymentStep> _displayManager;
         private readonly IEnumerable<IDeploymentStepFactory> _factories;
@@ -32,9 +34,11 @@ namespace OrchardCore.Deployment.Controllers
         private readonly PagerOptions _pagerOptions;
         private readonly INotifier _notifier;
         private readonly IUpdateModelAccessor _updateModelAccessor;
+        private readonly IShapeFactory _shapeFactory;
+
         protected readonly IStringLocalizer S;
         protected readonly IHtmlLocalizer H;
-        protected readonly dynamic New;
+
         public DeploymentPlanController(
             IAuthorizationService authorizationService,
             IDisplayManager<DeploymentStep> displayManager,
@@ -54,19 +58,19 @@ namespace OrchardCore.Deployment.Controllers
             _pagerOptions = pagerOptions.Value;
             _notifier = notifier;
             _updateModelAccessor = updateModelAccessor;
-            New = shapeFactory;
+            _shapeFactory = shapeFactory;
             S = stringLocalizer;
             H = htmlLocalizer;
         }
 
         public async Task<IActionResult> Index(ContentOptions options, PagerParameters pagerParameters)
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }
 
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.Export))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.Export))
             {
                 return Forbid();
             }
@@ -88,11 +92,15 @@ namespace OrchardCore.Deployment.Controllers
                 .Take(pager.PageSize)
                 .ListAsync();
 
-            // Maintain previous route data when generating page links
+            // Maintain previous route data when generating page links.
             var routeData = new RouteData();
-            routeData.Values.Add("Options.Search", options.Search);
 
-            var pagerShape = (await New.Pager(pager)).TotalItemCount(count).RouteData(routeData);
+            if (!string.IsNullOrEmpty(options.Search))
+            {
+                routeData.Values.TryAdd(_optionsSearch, options.Search);
+            }
+
+            var pagerShape = await _shapeFactory.PagerAsync(pager, count, routeData);
 
             var model = new DeploymentPlanIndexViewModel
             {
@@ -101,9 +109,10 @@ namespace OrchardCore.Deployment.Controllers
                 Pager = pagerShape
             };
 
-            model.Options.DeploymentPlansBulkAction = new List<SelectListItem>() {
-                new SelectListItem() { Text = S["Delete"], Value = nameof(ContentsBulkAction.Delete) }
-            };
+            model.Options.DeploymentPlansBulkAction =
+            [
+                new SelectListItem(S["Delete"], nameof(ContentsBulkAction.Delete)),
+            ];
 
             return View(model);
         }
@@ -111,17 +120,16 @@ namespace OrchardCore.Deployment.Controllers
         [HttpPost, ActionName(nameof(Index))]
         [FormValueRequired("submit.Filter")]
         public ActionResult IndexFilterPOST(DeploymentPlanIndexViewModel model)
-        {
-            return RedirectToAction(nameof(Index), new RouteValueDictionary {
-                { "Options.Search", model.Options.Search }
+            => RedirectToAction(nameof(Index), new RouteValueDictionary
+            {
+                { _optionsSearch, model.Options.Search }
             });
-        }
 
         [HttpPost, ActionName(nameof(Index))]
         [FormValueRequired("submit.BulkAction")]
         public async Task<ActionResult> IndexBulkActionPOST(ContentOptions options, IEnumerable<long> itemIds)
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }
@@ -141,7 +149,7 @@ namespace OrchardCore.Deployment.Controllers
                         await _notifier.SuccessAsync(H["Deployment plans successfully deleted."]);
                         break;
                     default:
-                        throw new ArgumentOutOfRangeException(nameof(options.BulkAction), "Invalid bulk action.");
+                        throw new ArgumentOutOfRangeException(options.BulkAction.ToString(), "Invalid bulk action.");
                 }
             }
 
@@ -150,7 +158,7 @@ namespace OrchardCore.Deployment.Controllers
 
         public async Task<IActionResult> Display(long id)
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }
@@ -165,8 +173,8 @@ namespace OrchardCore.Deployment.Controllers
             var items = new List<dynamic>();
             foreach (var step in deploymentPlan.DeploymentSteps)
             {
-                dynamic item = await _displayManager.BuildDisplayAsync(step, _updateModelAccessor.ModelUpdater, "Summary");
-                item.DeploymentStep = step;
+                var item = await _displayManager.BuildDisplayAsync(step, _updateModelAccessor.ModelUpdater, "Summary");
+                item.Properties["DeploymentStep"] = step;
                 items.Add(item);
             }
 
@@ -174,8 +182,8 @@ namespace OrchardCore.Deployment.Controllers
             foreach (var factory in _factories)
             {
                 var step = factory.Create();
-                dynamic thumbnail = await _displayManager.BuildDisplayAsync(step, _updateModelAccessor.ModelUpdater, "Thumbnail");
-                thumbnail.DeploymentStep = step;
+                var thumbnail = await _displayManager.BuildDisplayAsync(step, _updateModelAccessor.ModelUpdater, "Thumbnail");
+                thumbnail.Properties["DeploymentStep"] = step;
                 thumbnails.Add(factory.Name, thumbnail);
             }
 
@@ -191,7 +199,7 @@ namespace OrchardCore.Deployment.Controllers
 
         public async Task<IActionResult> Create()
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }
@@ -204,7 +212,7 @@ namespace OrchardCore.Deployment.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(CreateDeploymentPlanViewModel model)
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }
@@ -238,7 +246,7 @@ namespace OrchardCore.Deployment.Controllers
 
         public async Task<IActionResult> Edit(long id)
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }
@@ -262,7 +270,7 @@ namespace OrchardCore.Deployment.Controllers
         [HttpPost]
         public async Task<IActionResult> Edit(EditDeploymentPlanViewModel model)
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }
@@ -308,7 +316,7 @@ namespace OrchardCore.Deployment.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(long id)
         {
-            if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageDeploymentPlan))
+            if (!await _authorizationService.AuthorizeAsync(User, CommonPermissions.ManageDeploymentPlan))
             {
                 return Forbid();
             }

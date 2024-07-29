@@ -28,6 +28,8 @@ using OrchardCore.Environment.Shell;
 using OrchardCore.Environment.Shell.Builders;
 using OrchardCore.Environment.Shell.Configuration;
 using OrchardCore.Environment.Shell.Descriptor.Models;
+using OrchardCore.Extensions;
+using OrchardCore.Json;
 using OrchardCore.Localization;
 using OrchardCore.Locking;
 using OrchardCore.Locking.Distributed;
@@ -78,10 +80,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         public static OrchardCoreBuilder AddOrchardCore(this IServiceCollection services)
         {
-            if (services == null)
-            {
-                throw new ArgumentNullException(nameof(services));
-            }
+            ArgumentNullException.ThrowIfNull(services);
 
             // If an instance of OrchardCoreBuilder exists reuse it,
             // so we can call AddOrchardCore several times.
@@ -155,8 +154,12 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.AddSingleton<IPoweredByMiddlewareOptions, PoweredByMiddlewareOptions>();
 
+            services.AddTransient<IConfigureOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>, JsonOptionsConfigurations>();
+            services.AddTransient<IConfigureOptions<DocumentJsonSerializerOptions>, DocumentJsonSerializerOptionsConfiguration>();
+
             services.AddScoped<IOrchardHelper, DefaultOrchardHelper>();
             services.AddSingleton<IClientIPAddressAccessor, DefaultClientIPAddressAccessor>();
+            services.AddSingleton<ISlugService, SlugService>();
 
             builder.ConfigureServices((services, serviceProvider) =>
             {
@@ -168,8 +171,6 @@ namespace Microsoft.Extensions.DependencyInjection
 
                 services.Configure<CultureOptions>(configuration.GetSection("OrchardCore_Localization_CultureOptions"));
             });
-
-            services.AddSingleton<ISlugService, SlugService>();
         }
 
         private static void AddShellServices(OrchardCoreBuilder builder)
@@ -194,6 +195,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.ConfigureServices(shellServices =>
             {
+                shellServices.AddScoped<IShellReleaseManager, DefaultShellReleaseManager>();
                 shellServices.AddTransient<IConfigureOptions<ShellContextOptions>, ShellContextOptionsSetup>();
                 shellServices.AddNullFeatureProfilesService();
                 shellServices.AddFeatureValidation();
@@ -217,7 +219,7 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Adds tenant level configuration to serve static files from modules
+        /// Adds tenant level configuration to serve static files from modules.
         /// </summary>
         private static void AddStaticFiles(OrchardCoreBuilder builder)
         {
@@ -306,7 +308,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
                 collection.AddMetrics();
             },
-            order: int.MinValue + 100);
+            order: OrchardCoreConstants.ConfigureOrder.InfrastructureService);
         }
 
         /// <summary>
@@ -337,7 +339,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
                 collection.AddRouting();
             },
-            order: int.MinValue + 100);
+            order: OrchardCoreConstants.ConfigureOrder.InfrastructureService);
         }
 
         /// <summary>
@@ -376,7 +378,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 collection.AddSingleton<IHttpClientFactory>(sp => sp.GetRequiredService<TenantHttpClientFactory>());
                 collection.AddSingleton<IHttpMessageHandlerFactory>(sp => sp.GetRequiredService<TenantHttpClientFactory>());
             },
-            order: int.MinValue + 100);
+            order: OrchardCoreConstants.ConfigureOrder.InfrastructureService);
         }
 
         /// <summary>
@@ -405,7 +407,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 // Configure ApiExplorer at the tenant level.
                 collection.AddEndpointsApiExplorer();
             },
-            order: int.MinValue + 100);
+            order: OrchardCoreConstants.ConfigureOrder.InfrastructureService);
         }
 
         /// <summary>
@@ -427,7 +429,7 @@ namespace Microsoft.Extensions.DependencyInjection
                         options.Cookie.Name = cookieName;
 
                         // Don't set the cookie builder 'Path' so that it uses the 'IAuthenticationFeature' value
-                        // set by the pipeline and comming from the request 'PathBase' which already ends with the
+                        // set by the pipeline and coming from the request 'PathBase' which already ends with the
                         // tenant prefix but may also start by a path related e.g to a virtual folder.
                     });
 
@@ -445,8 +447,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 services.Configure<CookiePolicyOptions>(options =>
                 {
                     options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
-                    options.OnAppendCookie = cookieContext => CheckSameSiteBackwardsCompatiblity(cookieContext.Context, cookieContext.CookieOptions);
-                    options.OnDeleteCookie = cookieContext => CheckSameSiteBackwardsCompatiblity(cookieContext.Context, cookieContext.CookieOptions);
+                    options.OnAppendCookie = cookieContext => CheckSameSiteBackwardsCompatibility(cookieContext.Context, cookieContext.CookieOptions);
+                    options.OnDeleteCookie = cookieContext => CheckSameSiteBackwardsCompatibility(cookieContext.Context, cookieContext.CookieOptions);
                 });
             })
             .Configure(app =>
@@ -455,9 +457,9 @@ namespace Microsoft.Extensions.DependencyInjection
             });
         }
 
-        private static void CheckSameSiteBackwardsCompatiblity(HttpContext httpContext, CookieOptions options)
+        private static void CheckSameSiteBackwardsCompatibility(HttpContext httpContext, CookieOptions options)
         {
-            var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
+            var userAgent = httpContext.Request.Headers.UserAgent.ToString();
 
             if (options.SameSite == SameSiteMode.None)
             {
@@ -520,7 +522,7 @@ namespace Microsoft.Extensions.DependencyInjection
             .Configure(app =>
             {
                 app.UseAuthentication();
-            });
+            }, order: OrchardCoreConstants.ConfigureOrder.Authentication);
         }
 
         /// <summary>
@@ -555,7 +557,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 services.RemoveAll<IConfigureOptions<DataProtectionOptions>>();
 
                 services.Add(collection);
-            });
+            }, order: OrchardCoreConstants.ConfigureOrder.DataProtection);
         }
     }
 }

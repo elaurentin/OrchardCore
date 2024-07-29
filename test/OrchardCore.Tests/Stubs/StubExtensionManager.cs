@@ -17,7 +17,7 @@ namespace OrchardCore.Tests.Stubs
 
         public IEnumerable<IExtensionInfo> GetExtensions()
         {
-            throw new NotImplementedException();
+            return [];
         }
 
         public IEnumerable<IFeatureInfo> GetFeatureDependencies(string featureId)
@@ -27,7 +27,7 @@ namespace OrchardCore.Tests.Stubs
 
         public IEnumerable<IFeatureInfo> GetFeatures()
         {
-            return Enumerable.Empty<IFeatureInfo>();
+            return [];
         }
 
         public IEnumerable<IFeatureInfo> GetFeatures(string[] featureIdsToLoad)
@@ -40,12 +40,12 @@ namespace OrchardCore.Tests.Stubs
             throw new NotImplementedException();
         }
 
-        public Task<IEnumerable<FeatureEntry>> LoadFeaturesAsync()
+        public Task<IEnumerable<IFeatureInfo>> LoadFeaturesAsync()
         {
             throw new NotImplementedException();
         }
 
-        public Task<IEnumerable<FeatureEntry>> LoadFeaturesAsync(string[] featureIdsToLoad)
+        public Task<IEnumerable<IFeatureInfo>> LoadFeaturesAsync(string[] featureIdsToLoad)
         {
             throw new NotImplementedException();
         }

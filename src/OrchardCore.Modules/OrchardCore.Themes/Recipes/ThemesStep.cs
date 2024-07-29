@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using OrchardCore.Admin;
 using OrchardCore.Recipes.Models;
@@ -10,7 +11,7 @@ namespace OrchardCore.Themes.Recipes
     /// <summary>
     /// This recipe step defines the site and admin current themes.
     /// </summary>
-    public class ThemesStep : IRecipeStepHandler
+    public sealed class ThemesStep : IRecipeStepHandler
     {
         private readonly ISiteThemeService _siteThemeService;
         private readonly IAdminThemeService _adminThemeService;
@@ -44,7 +45,7 @@ namespace OrchardCore.Themes.Recipes
         }
     }
 
-    public class ThemeStepModel
+    public sealed class ThemeStepModel
     {
         public string Site { get; set; }
         public string Admin { get; set; }

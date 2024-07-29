@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
@@ -34,16 +33,13 @@ namespace OrchardCore.ResourceManagement
 
             tagBuilder.WriteTo(writer, NullHtmlEncoder.Default);
 
-            if (!string.IsNullOrEmpty(Settings.Condition))
+            if (Settings.Condition == NotIE)
             {
-                if (Settings.Condition == NotIE)
-                {
-                    writer.Write("<!--<![endif]-->");
-                }
-                else
-                {
-                    writer.Write("<![endif]-->");
-                }
+                writer.Write("<!--<![endif]-->");
+            }
+            else
+            {
+                writer.Write("<![endif]-->");
             }
         }
     }

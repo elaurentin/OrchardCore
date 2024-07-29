@@ -1,6 +1,6 @@
 using System;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using OrchardCore.Recipes.Models;
 using OrchardCore.Recipes.Services;
 using OrchardCore.Templates.Models;
@@ -11,7 +11,7 @@ namespace OrchardCore.Templates.Recipes
     /// <summary>
     /// This recipe step creates a set of templates.
     /// </summary>
-    public class AdminTemplateStep : IRecipeStepHandler
+    public sealed class AdminTemplateStep : IRecipeStepHandler
     {
         private readonly AdminTemplatesManager _adminTemplatesManager;
 
@@ -27,11 +27,11 @@ namespace OrchardCore.Templates.Recipes
                 return;
             }
 
-            if (context.Step.Property("AdminTemplates").Value is JObject templates)
+            if (context.Step.TryGetPropertyValue("AdminTemplates", out var jsonNode) && jsonNode is JsonObject templates)
             {
-                foreach (var property in templates.Properties())
+                foreach (var property in templates)
                 {
-                    var name = property.Name;
+                    var name = property.Key;
                     var value = property.Value.ToObject<Template>();
 
                     await _adminTemplatesManager.UpdateTemplateAsync(name, value);

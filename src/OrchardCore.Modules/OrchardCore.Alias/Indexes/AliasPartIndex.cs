@@ -23,7 +23,7 @@ namespace OrchardCore.Alias.Indexes
     public class AliasPartIndexProvider : ContentHandlerBase, IIndexProvider, IScopedIndexProvider
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly HashSet<string> _partRemoved = new();
+        private readonly HashSet<string> _partRemoved = [];
         private IContentDefinitionManager _contentDefinitionManager;
 
         public AliasPartIndexProvider(IServiceProvider serviceProvider)
@@ -44,7 +44,7 @@ namespace OrchardCore.Alias.Indexes
 
                 // Search for this part.
                 var contentTypeDefinition = await _contentDefinitionManager.GetTypeDefinitionAsync(context.ContentItem.ContentType);
-                if (!contentTypeDefinition.Parts.Any(ctd => ctd.Name == nameof(AliasPart)))
+                if (contentTypeDefinition?.Parts is not null && !contentTypeDefinition.Parts.Any(ctd => string.Equals(ctd.Name, nameof(AliasPart), StringComparison.Ordinal)))
                 {
                     context.ContentItem.Remove<AliasPart>();
                     _partRemoved.Add(context.ContentItem.ContentItemId);

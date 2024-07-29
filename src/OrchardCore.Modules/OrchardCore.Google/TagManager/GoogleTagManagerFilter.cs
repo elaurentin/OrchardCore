@@ -1,17 +1,15 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Filters;
 using OrchardCore.Admin;
-using OrchardCore.Entities;
 using OrchardCore.Google.TagManager.Settings;
 using OrchardCore.ResourceManagement;
 using OrchardCore.Settings;
 
 namespace OrchardCore.Google.TagManager
 {
-    public class GoogleTagManagerFilter : IAsyncResultFilter
+    public sealed class GoogleTagManagerFilter : IAsyncResultFilter
     {
         private readonly IResourceManager _resourceManager;
         private readonly ISiteService _siteService;
@@ -35,7 +33,7 @@ namespace OrchardCore.Google.TagManager
 
                 if (_scriptsCache == null && canTrack)
                 {
-                    var settings = (await _siteService.GetSiteSettingsAsync()).As<GoogleTagManagerSettings>();
+                    var settings = await _siteService.GetSettingsAsync<GoogleTagManagerSettings>();
 
                     if (!string.IsNullOrWhiteSpace(settings?.ContainerID))
                     {

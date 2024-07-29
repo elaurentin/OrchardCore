@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,18 +24,20 @@ using OrchardCore.Security.Services;
 
 namespace OrchardCore.OpenId.Controllers
 {
-    [Admin, Feature(OpenIdConstants.Features.Management)]
+    [Feature(OpenIdConstants.Features.Management)]
+    [Admin("OpenId/Application/{action}/{id?}", "OpenIdApplication{action}")]
     public class ApplicationController : Controller
     {
         private readonly IAuthorizationService _authorizationService;
-        protected readonly IStringLocalizer S;
-        protected readonly IHtmlLocalizer H;
+        private readonly IShapeFactory _shapeFactory;
         private readonly PagerOptions _pagerOptions;
         private readonly IOpenIdApplicationManager _applicationManager;
         private readonly IOpenIdScopeManager _scopeManager;
         private readonly INotifier _notifier;
         private readonly ShellDescriptor _shellDescriptor;
-        protected readonly dynamic New;
+
+        protected readonly IStringLocalizer S;
+        protected readonly IHtmlLocalizer H;
 
         public ApplicationController(
             IShapeFactory shapeFactory,
@@ -47,7 +50,7 @@ namespace OrchardCore.OpenId.Controllers
             INotifier notifier,
             ShellDescriptor shellDescriptor)
         {
-            New = shapeFactory;
+            _shapeFactory = shapeFactory;
             _pagerOptions = pagerOptions.Value;
             S = stringLocalizer;
             H = htmlLocalizer;
@@ -58,6 +61,7 @@ namespace OrchardCore.OpenId.Controllers
             _shellDescriptor = shellDescriptor;
         }
 
+        [Admin("OpenId/Application", "OpenIdApplication")]
         public async Task<ActionResult> Index(PagerParameters pagerParameters)
         {
             if (!await _authorizationService.AuthorizeAsync(User, Permissions.ManageApplications))
@@ -68,19 +72,24 @@ namespace OrchardCore.OpenId.Controllers
             var pager = new Pager(pagerParameters, _pagerOptions.GetPageSize());
             var count = await _applicationManager.CountAsync();
 
-            var model = new OpenIdApplicationsIndexViewModel
-            {
-                Pager = (await New.Pager(pager)).TotalItemCount(count)
-            };
+            var applications = new List<OpenIdApplicationEntry>();
 
             await foreach (var application in _applicationManager.ListAsync(pager.PageSize, pager.GetStartIndex()))
             {
-                model.Applications.Add(new OpenIdApplicationEntry
+                applications.Add(new OpenIdApplicationEntry
                 {
                     DisplayName = await _applicationManager.GetDisplayNameAsync(application),
                     Id = await _applicationManager.GetPhysicalIdAsync(application)
                 });
             }
+
+            var model = new OpenIdApplicationsIndexViewModel
+            {
+                Pager = await _shapeFactory.PagerAsync(pager, (int)count),
+                Applications = applications.OrderBy(x => x.DisplayName)
+                .ThenBy(x => x.Id)
+                .ToArray(),
+            };
 
             return View(model);
         }

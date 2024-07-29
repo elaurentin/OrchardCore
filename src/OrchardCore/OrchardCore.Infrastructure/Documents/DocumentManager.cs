@@ -261,7 +261,7 @@ namespace OrchardCore.Documents
                         return document;
                     }
 
-                    if (_isDistributed && (_options?.SlidingExpiration.HasValue ?? false))
+                    if (_isDistributed && _options.SlidingExpiration.HasValue)
                     {
                         await _distributedCache.RefreshAsync(_options.CacheKey);
                     }
@@ -350,16 +350,15 @@ namespace OrchardCore.Documents
             }
         }
 
+#pragma warning disable IDE0060 // Remove unused parameter
         protected async Task InvalidateInternalAsync(TDocument document, bool failover = false)
+#pragma warning restore IDE0060 // Remove unused parameter
         {
             if (_isDistributed)
             {
                 await _distributedCache.RemoveAsync(_options.CacheIdKey);
             }
-            else
-            {
-                _memoryCache.Remove(_options.CacheIdKey);
-            }
+            _memoryCache.Remove(_options.CacheIdKey);
         }
 
         private async Task<TDocument> GetFromDistributedCacheAsync()

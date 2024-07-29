@@ -1,9 +1,9 @@
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Localization;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using OrchardCore.ContentManagement;
 using OrchardCore.ContentManagement.Workflows;
 using OrchardCore.Workflows.Abstractions.Models;
@@ -16,6 +16,7 @@ namespace OrchardCore.Contents.Workflows.Activities
 {
     public abstract class ContentActivity : Activity
     {
+
         protected readonly IStringLocalizer S;
 
         protected ContentActivity(
@@ -33,7 +34,7 @@ namespace OrchardCore.Contents.Workflows.Activities
         protected IWorkflowScriptEvaluator ScriptEvaluator { get; }
 
         /// <summary>
-        /// A <see cref="ContentEventContext"/> updated when executed inline from a <see cref="ContentEvent"/>
+        /// A <see cref="ContentEventContext"/> updated when executed inline from a <see cref="ContentEvent"/>.
         /// </summary>
         protected ContentEventContext InlineEvent { get; private set; } = new ContentEventContext();
 
@@ -78,7 +79,19 @@ namespace OrchardCore.Contents.Workflows.Activities
 
             if (workflowContext.Input.TryGetValue(ContentEventConstants.ContentEventInputKey, out var contentEvent))
             {
-                var contentEventContext = ((JObject)contentEvent).ToObject<ContentEventContext>();
+                if (contentEvent is not JsonObject jsonObject)
+                {
+                    jsonObject = [];
+                    if (contentEvent is Dictionary<string, object> items)
+                    {
+                        foreach (var item in items)
+                        {
+                            jsonObject[item.Key] = JsonSerializer.SerializeToNode(item.Value);
+                        }
+                    }
+                }
+
+                var contentEventContext = jsonObject.ToObject<ContentEventContext>();
 
                 if (contentEventContext?.ContentItemVersionId != null)
                 {
@@ -92,11 +105,23 @@ namespace OrchardCore.Contents.Workflows.Activities
 
             if (contentItem == null && workflowContext.Input.TryGetValue(ContentEventConstants.ContentItemInputKey, out var contentItemEvent))
             {
-                var item = ((JObject)contentItemEvent).ToObject<ContentItem>();
-
-                if (item?.ContentItemId != null)
+                if (contentItemEvent is not JsonObject jsonObject)
                 {
-                    contentItem = await ContentManager.GetAsync(item.ContentItemId);
+                    jsonObject = [];
+                    if (contentEvent is Dictionary<string, object> items)
+                    {
+                        foreach (var item in items)
+                        {
+                            jsonObject[item.Key] = JsonSerializer.SerializeToNode(item.Value);
+                        }
+                    }
+                }
+
+                var existingContentItem = jsonObject.ToObject<ContentItem>();
+
+                if (existingContentItem?.ContentItemId != null)
+                {
+                    contentItem = await ContentManager.GetAsync(existingContentItem.ContentItemId);
                 }
             }
 
@@ -127,8 +152,8 @@ namespace OrchardCore.Contents.Workflows.Activities
                 else
                 {
                     // Try to map the result to a content item.
-                    var json = JsonConvert.SerializeObject(result);
-                    content = JsonConvert.DeserializeObject<ContentItem>(json);
+                    var json = JConvert.SerializeObject(result);
+                    content = JConvert.DeserializeObject<ContentItem>(json);
                 }
             }
             else
@@ -138,7 +163,7 @@ namespace OrchardCore.Contents.Workflows.Activities
                     ?? workflowContext.Properties.GetValue<IContent>(ContentEventConstants.ContentItemInputKey);
             }
 
-            if (content != null && content.ContentItem.ContentItemId != null)
+            if (content?.ContentItem?.ContentItemId != null)
             {
                 return content;
             }

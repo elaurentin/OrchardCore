@@ -1,24 +1,30 @@
 using Microsoft.Extensions.DependencyInjection;
+using OrchardCore.Data.Migration;
 using OrchardCore.DisplayManagement.Handlers;
 using OrchardCore.Modules;
 using OrchardCore.Navigation;
+using OrchardCore.Queries.Core;
 using OrchardCore.Queries.Sql.Drivers;
+using OrchardCore.Queries.Sql.Migrations;
 using OrchardCore.Security.Permissions;
 
 namespace OrchardCore.Queries.Sql
 {
     /// <summary>
-    /// These services are registered on the tenant service collection
+    /// These services are registered on the tenant service collection.
     /// </summary>
     [Feature("OrchardCore.Queries.Sql")]
-    public class Startup : StartupBase
+    public sealed class Startup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
             services.AddScoped<IPermissionProvider, Permissions>();
             services.AddScoped<IDisplayDriver<Query>, SqlQueryDisplayDriver>();
-            services.AddScoped<IQuerySource, SqlQuerySource>();
+            services.AddQuerySource<SqlQuerySource>(SqlQuerySource.SourceName);
+
             services.AddScoped<INavigationProvider, AdminMenu>();
+            services.AddDataMigration<SqlQueryMigrations>();
+            services.AddScoped<IQueryHandler, SqlQueryHandler>();
         }
     }
 }

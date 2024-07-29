@@ -43,8 +43,8 @@ namespace OrchardCore.Deployment
         {
             var user = _httpContextAccessor.HttpContext.User;
 
-            var result = await _authorizationService.AuthorizeAsync(user, Permissions.ManageDeploymentPlan) &&
-                         await _authorizationService.AuthorizeAsync(user, Permissions.Export);
+            var result = await _authorizationService.AuthorizeAsync(user, CommonPermissions.ManageDeploymentPlan) &&
+                         await _authorizationService.AuthorizeAsync(user, CommonPermissions.Export);
 
             return result;
         }
@@ -53,7 +53,7 @@ namespace OrchardCore.Deployment
         {
             var user = _httpContextAccessor.HttpContext.User;
 
-            var result = await _authorizationService.AuthorizeAsync(user, Permissions.Export);
+            var result = await _authorizationService.AuthorizeAsync(user, CommonPermissions.Export);
 
             return result;
         }
@@ -79,7 +79,7 @@ namespace OrchardCore.Deployment
             return GetDeploymentPlans(deploymentPlans, deploymentPlanNames);
         }
 
-        private static IEnumerable<DeploymentPlan> GetDeploymentPlans(IDictionary<string, DeploymentPlan> deploymentPlans, params string[] deploymentPlanNames)
+        private static IEnumerable<DeploymentPlan> GetDeploymentPlans(Dictionary<string, DeploymentPlan> deploymentPlans, params string[] deploymentPlanNames)
         {
             foreach (var deploymentPlanName in deploymentPlanNames)
             {

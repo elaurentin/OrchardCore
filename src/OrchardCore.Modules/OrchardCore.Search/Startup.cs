@@ -1,4 +1,5 @@
 using System;
+using Fluid;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ using OrchardCore.Search.Deployment;
 using OrchardCore.Search.Drivers;
 using OrchardCore.Search.Migrations;
 using OrchardCore.Search.Models;
+using OrchardCore.Search.ViewModels;
 using OrchardCore.Security.Permissions;
 using OrchardCore.Settings;
 
@@ -24,7 +26,7 @@ namespace OrchardCore.Search
     /// <summary>
     /// These services are registered on the tenant service collection.
     /// </summary>
-    public class Startup : StartupBase
+    public sealed class Startup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
@@ -51,13 +53,25 @@ namespace OrchardCore.Search
     }
 
     [RequireFeatures("OrchardCore.Deployment")]
-    public class DeploymentStartup : StartupBase
+    public sealed class DeploymentStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
-            services.AddTransient<IDeploymentSource, SearchSettingsDeploymentSource>();
-            services.AddSingleton<IDeploymentStepFactory>(new DeploymentStepFactory<SearchSettingsDeploymentStep>());
-            services.AddScoped<IDisplayDriver<DeploymentStep>, SearchSettingsDeploymentStepDriver>();
+            services.AddDeployment<SearchSettingsDeploymentSource, SearchSettingsDeploymentStep, SearchSettingsDeploymentStepDriver>();
+        }
+    }
+
+    [RequireFeatures("OrchardCore.Liquid")]
+    public sealed class LiquidStartup : StartupBase
+    {
+        public override void ConfigureServices(IServiceCollection services)
+        {
+            services.Configure<TemplateOptions>(o =>
+            {
+                o.MemberAccessStrategy.Register<SearchIndexViewModel>();
+                o.MemberAccessStrategy.Register<SearchFormViewModel>();
+                o.MemberAccessStrategy.Register<SearchResultsViewModel>();
+            });
         }
     }
 }

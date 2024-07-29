@@ -12,7 +12,7 @@ using OrchardCore.Settings.Deployment;
 namespace OrchardCore.Contents.Deployment.ExportContentToDeploymentTarget
 {
     [Feature("OrchardCore.Contents.Deployment.ExportContentToDeploymentTarget")]
-    public class ExportContentToDeploymentTargetStartup : StartupBase
+    public sealed class ExportContentToDeploymentTargetStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
@@ -20,9 +20,7 @@ namespace OrchardCore.Contents.Deployment.ExportContentToDeploymentTarget
 
             services.AddScoped<IDisplayDriver<ISite>, ExportContentToDeploymentTargetSettingsDisplayDriver>();
 
-            services.AddTransient<IDeploymentSource, ExportContentToDeploymentTargetDeploymentSource>();
-            services.AddSingleton<IDeploymentStepFactory>(new DeploymentStepFactory<ExportContentToDeploymentTargetDeploymentStep>());
-            services.AddScoped<IDisplayDriver<DeploymentStep>, ExportContentToDeploymentTargetDeploymentStepDriver>();
+            services.AddDeployment<ExportContentToDeploymentTargetDeploymentSource, ExportContentToDeploymentTargetDeploymentStep, ExportContentToDeploymentTargetDeploymentStepDriver>();
 
             services.AddDataMigration<ExportContentToDeploymentTargetMigrations>();
             services.AddScoped<IContentDisplayDriver, ExportContentToDeploymentTargetContentDriver>();

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using OrchardCore.DisplayManagement;
 using OrchardCore.DisplayManagement.Layout;
 using OrchardCore.DisplayManagement.Shapes;
+using OrchardCore.Navigation;
 
 namespace OrchardCore.Admin
 {
@@ -10,7 +11,7 @@ namespace OrchardCore.Admin
     /// This filter inject a Navigation shape in the Navigation zone of the Layout
     /// for any ViewResult returned from an Admin controller.
     /// </summary>
-    public class AdminMenuFilter : IAsyncResultFilter
+    public sealed class AdminMenuFilter : IAsyncResultFilter
     {
         private readonly ILayoutAccessor _layoutAccessor;
         private readonly IShapeFactory _shapeFactory;
@@ -57,7 +58,7 @@ namespace OrchardCore.Admin
             var menuShape = await _shapeFactory.CreateAsync("Navigation",
                 Arguments.From(new
                 {
-                    MenuName = "admin",
+                    MenuName = NavigationConstants.AdminId,
                     filterContext.RouteData,
                 }));
 

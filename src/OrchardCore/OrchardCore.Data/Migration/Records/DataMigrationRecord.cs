@@ -12,11 +12,11 @@ namespace OrchardCore.Data.Migration.Records
         /// </summary>
         public DataMigrationRecord()
         {
-            DataMigrations = new List<DataMigration>();
+            DataMigrations = [];
         }
 
         /// <summary>
-        /// Gete or sets the record Id.
+        /// Gets or sets the record Id.
         /// </summary>
         public long Id { get; set; }
 

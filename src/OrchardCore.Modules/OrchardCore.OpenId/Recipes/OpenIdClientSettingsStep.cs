@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using OrchardCore.OpenId.Services;
 using OrchardCore.OpenId.Settings;
@@ -10,7 +11,7 @@ namespace OrchardCore.OpenId.Recipes
     /// <summary>
     /// This recipe step sets general OpenID Connect Client settings.
     /// </summary>
-    public class OpenIdClientSettingsStep : IRecipeStepHandler
+    public sealed class OpenIdClientSettingsStep : IRecipeStepHandler
     {
         private readonly IOpenIdClientService _clientService;
 
@@ -46,7 +47,7 @@ namespace OrchardCore.OpenId.Recipes
         }
     }
 
-    public class OpenIdClientSettingsStepModel
+    public sealed class OpenIdClientSettingsStepModel
     {
         public string DisplayName { get; set; }
 

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Encodings.Web;
@@ -18,7 +17,7 @@ namespace OrchardCore.Media.Liquid
     {
         public int Order => -20;
 
-        public bool Match(List<FilterArgument> argumentsList)
+        public bool Match(IReadOnlyList<FilterArgument> argumentsList)
         {
             foreach (var argument in argumentsList)
             {
@@ -31,7 +30,7 @@ namespace OrchardCore.Media.Liquid
             return false;
         }
 
-        public async ValueTask<Completion> WriteToAsync(List<FilterArgument> argumentsList, IReadOnlyList<Statement> statements, TextWriter writer, TextEncoder encoder, LiquidTemplateContext context)
+        public async ValueTask<Completion> WriteToAsync(IReadOnlyList<FilterArgument> argumentsList, IReadOnlyList<Statement> statements, TextWriter writer, TextEncoder encoder, LiquidTemplateContext context)
         {
             var services = context.Services;
             var mediaFileStore = services.GetRequiredService<IMediaFileStore>();
@@ -52,7 +51,7 @@ namespace OrchardCore.Media.Liquid
 
                     default:
 
-                        customAttributes ??= new Dictionary<string, string>();
+                        customAttributes ??= [];
                         customAttributes[argument.Name] = (await argument.Expression.EvaluateAsync(context)).ToStringValue();
 
                         break;

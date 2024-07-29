@@ -1,15 +1,13 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Filters;
 using OrchardCore.Admin;
-using OrchardCore.Entities;
 using OrchardCore.Facebook.Settings;
 using OrchardCore.ResourceManagement;
 using OrchardCore.Settings;
 
 namespace OrchardCore.Facebook.Filters
 {
-    public class FBInitFilter : IAsyncResultFilter
+    public sealed class FBInitFilter : IAsyncResultFilter
     {
         private readonly IResourceManager _resourceManager;
         private readonly ISiteService _siteService;

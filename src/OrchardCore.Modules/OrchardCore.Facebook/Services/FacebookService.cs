@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Localization;
-using Newtonsoft.Json.Linq;
-using OrchardCore.Entities;
 using OrchardCore.Facebook.Settings;
 using OrchardCore.Settings;
 
@@ -13,6 +12,7 @@ namespace OrchardCore.Facebook.Services
     public class FacebookService : IFacebookService
     {
         private readonly ISiteService _siteService;
+
         protected readonly IStringLocalizer S;
 
         public FacebookService(
@@ -23,18 +23,12 @@ namespace OrchardCore.Facebook.Services
             S = stringLocalizer;
         }
 
-        public async Task<FacebookSettings> GetSettingsAsync()
-        {
-            var container = await _siteService.GetSiteSettingsAsync();
-            return container.As<FacebookSettings>();
-        }
+        public Task<FacebookSettings> GetSettingsAsync()
+            => _siteService.GetSettingsAsync<FacebookSettings>();
 
         public async Task UpdateSettingsAsync(FacebookSettings settings)
         {
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+            ArgumentNullException.ThrowIfNull(settings);
 
             var container = await _siteService.LoadSiteSettingsAsync();
             container.Properties[nameof(FacebookSettings)] = JObject.FromObject(settings);
@@ -43,10 +37,7 @@ namespace OrchardCore.Facebook.Services
 
         public IEnumerable<ValidationResult> ValidateSettings(FacebookSettings settings)
         {
-            if (settings == null)
-            {
-                throw new ArgumentNullException(nameof(settings));
-            }
+            ArgumentNullException.ThrowIfNull(settings);
 
             var results = new List<ValidationResult>();
 

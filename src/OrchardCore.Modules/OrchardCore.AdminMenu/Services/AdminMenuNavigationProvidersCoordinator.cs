@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,7 +12,7 @@ namespace OrchardCore.AdminMenu.Services
     // Those are classes that add new 'AdminNodes' to a 'NavigationBuilder' using custom logic specific to the module that register them.
     // This class handles their inclusion on the admin menu.
     // This class is itself one more 'INavigationProvider' so it can be called from this module's AdminMenu.cs.
-    public class AdminMenuNavigationProvidersCoordinator : INavigationProvider
+    public sealed class AdminMenuNavigationProvidersCoordinator : INavigationProvider
     {
         private readonly IAdminMenuService _adminMenuService;
         private readonly IAuthorizationService _authorizationService;
@@ -35,16 +34,16 @@ namespace OrchardCore.AdminMenu.Services
             _logger = logger;
         }
 
-        // We only add them if the caller uses the string "adminMenu").
-        // todo: use a public constant for the string
         public async Task BuildNavigationAsync(string name, NavigationBuilder builder)
         {
-            if (!string.Equals(name, "adminMenu", StringComparison.OrdinalIgnoreCase))
+            // We only add them if the caller uses the string "adminMenu".
+            if (name != NavigationConstants.AdminMenuId)
             {
                 return;
             }
 
-            var trees = (await _adminMenuService.GetAdminMenuListAsync()).AdminMenu.Where(m => m.Enabled && m.MenuItems.Count > 0);
+            var trees = (await _adminMenuService.GetAdminMenuListAsync())
+                .AdminMenu.Where(m => m.Enabled && m.MenuItems.Count > 0);
 
             foreach (var tree in trees)
             {
@@ -59,7 +58,7 @@ namespace OrchardCore.AdminMenu.Services
 
         private async Task BuildTreeAsync(Models.AdminMenu tree, NavigationBuilder builder)
         {
-            foreach (MenuItem node in tree.MenuItems)
+            foreach (var node in tree.MenuItems)
             {
                 var nodeBuilder = _nodeBuilders.FirstOrDefault(x => x.Name == node.GetType().Name);
 

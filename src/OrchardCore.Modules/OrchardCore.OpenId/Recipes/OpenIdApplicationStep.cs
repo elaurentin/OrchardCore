@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using OrchardCore.OpenId.Abstractions.Managers;
 using OrchardCore.Recipes.Models;
@@ -7,7 +8,7 @@ using OrchardCore.Recipes.Services;
 
 namespace OrchardCore.OpenId.Recipes
 {
-    public class OpenIdApplicationStep : IRecipeStepHandler
+    public sealed class OpenIdApplicationStep : IRecipeStepHandler
     {
         private readonly IOpenIdApplicationManager _applicationManager;
 

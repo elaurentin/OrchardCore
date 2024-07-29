@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using OrchardCore.OpenId.Services;
@@ -11,12 +12,14 @@ namespace OrchardCore.OpenId.Recipes
     /// <summary>
     /// This recipe step sets general OpenID Connect settings.
     /// </summary>
-    public class OpenIdServerSettingsStep : IRecipeStepHandler
+    public sealed class OpenIdServerSettingsStep : IRecipeStepHandler
     {
         private readonly IOpenIdServerService _serverService;
 
         public OpenIdServerSettingsStep(IOpenIdServerService serverService)
-            => _serverService = serverService;
+        {
+            _serverService = serverService;
+        }
 
         public async Task ExecuteAsync(RecipeExecutionContext context)
         {

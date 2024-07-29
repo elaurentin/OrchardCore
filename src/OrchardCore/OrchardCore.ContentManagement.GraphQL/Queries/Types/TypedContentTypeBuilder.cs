@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using GraphQL;
 using GraphQL.Resolvers;
@@ -22,7 +23,7 @@ namespace OrchardCore.ContentManagement.GraphQL.Queries.Types
             _contentOptions = contentOptionsAccessor.Value;
         }
 
-        public void Build(FieldType contentQuery, ContentTypeDefinition contentTypeDefinition, ContentItemType contentItemType)
+        public void Build(ISchema schema, FieldType contentQuery, ContentTypeDefinition contentTypeDefinition, ContentItemType contentItemType)
         {
             var serviceProvider = _httpContextAccessor.HttpContext.RequestServices;
             var typeActivator = serviceProvider.GetService<ITypeActivatorFactory<ContentPart>>();
@@ -40,27 +41,32 @@ namespace OrchardCore.ContentManagement.GraphQL.Queries.Types
                 }
 
                 var partName = part.Name;
+                var partFieldName = partName.ToFieldName();
 
                 // Check if another builder has already added a field for this part.
-                if (contentItemType.HasField(partName))
+                if (contentItemType.HasField(partFieldName))
                 {
                     continue;
                 }
 
-                var activator = typeActivator.GetTypeActivator(part.PartDefinition.Name);
-
-                var queryGraphType = typeof(ObjectGraphType<>).MakeGenericType(activator.Type);
+                var queryGraphType = schema.AdditionalTypeInstances
+                    .FirstOrDefault(x => x is IObjectGraphType && x.GetType().BaseType.GetGenericArguments().First().Name == part.PartDefinition.Name) as IObjectGraphType;
 
                 var collapsePart = _contentOptions.ShouldCollapse(part);
 
-                if (serviceProvider.GetService(queryGraphType) is IObjectGraphType queryGraphTypeResolved)
+                if (queryGraphType != null)
                 {
                     if (collapsePart)
                     {
-                        foreach (var field in queryGraphTypeResolved.Fields)
+                        foreach (var field in queryGraphType.Fields)
                         {
-                            if (_contentOptions.ShouldSkip(queryGraphType, field.Name)) continue;
+                            if (_contentOptions.ShouldSkip(queryGraphType.GetType(), field.Name) ||
+                                contentItemType.HasFieldIgnoreCase(field.Name))
+                            {
+                                continue;
+                            }
 
+                            var partType = typeActivator.GetTypeActivator(part.PartDefinition.Name).Type;
                             var rolledUpField = new FieldType
                             {
                                 Name = field.Name,
@@ -71,9 +77,9 @@ namespace OrchardCore.ContentManagement.GraphQL.Queries.Types
                                 Resolver = new FuncFieldResolver<ContentItem, object>(context =>
                                 {
                                     var nameToResolve = partName;
-                                    var resolvedPart = context.Source.Get(activator.Type, nameToResolve);
+                                    var resolvedPart = context.Source.Get(partType, nameToResolve);
 
-                                    return field.Resolver.Resolve(new ResolveFieldContext
+                                    return field.Resolver.ResolveAsync(new ResolveFieldContext
                                     {
                                         Arguments = context.Arguments,
                                         Source = resolvedPart,
@@ -89,23 +95,28 @@ namespace OrchardCore.ContentManagement.GraphQL.Queries.Types
                     }
                     else
                     {
-                        contentItemType.Field(
-                            queryGraphTypeResolved.GetType(),
-                            partName.ToFieldName(),
-                            description: queryGraphTypeResolved.Description,
-                            resolve: context =>
-                            {
-                                var nameToResolve = partName;
-                                var typeToResolve = context.FieldDefinition.ResolvedType.GetType().BaseType.GetGenericArguments().First();
+                        var field = new FieldType
+                        {
+                            Name = partFieldName,
+                            Type = queryGraphType.GetType(),
+                            Description = queryGraphType.Description,
+                        };
+                        contentItemType.Field(partFieldName, queryGraphType.GetType())
+                                       .Description(queryGraphType.Description)
+                                       .Resolve(context =>
+                                       {
+                                           var nameToResolve = partName;
+                                           var typeToResolve = context.FieldDefinition.ResolvedType.GetType().BaseType.GetGenericArguments().First();
 
-                                return context.Source.Get(typeToResolve, nameToResolve);
-                            });
+                                           return context.Source.Get(typeToResolve, nameToResolve);
+                                       });
                     }
                 }
 
-                var inputGraphType = typeof(InputObjectGraphType<>).MakeGenericType(activator.Type);
+                var inputGraphTypeResolved = schema.AdditionalTypeInstances
+                    .FirstOrDefault(x => x is IInputObjectGraphType && x.GetType().BaseType.GetGenericArguments().FirstOrDefault()?.Name == part.PartDefinition.Name) as IInputObjectGraphType;
 
-                if (serviceProvider.GetService(inputGraphType) is IInputObjectGraphType inputGraphTypeResolved)
+                if (inputGraphTypeResolved != null)
                 {
                     var whereArgument = contentQuery.Arguments.FirstOrDefault(x => x.Name == "where");
                     if (whereArgument == null)
@@ -127,7 +138,7 @@ namespace OrchardCore.ContentManagement.GraphQL.Queries.Types
                         whereInput.AddField(new FieldType
                         {
                             Type = inputGraphTypeResolved.GetType(),
-                            Name = partName.ToFieldName(),
+                            Name = partFieldName,
                             Description = inputGraphTypeResolved.Description
                         }.WithPartNameMetaData(partName));
                     }

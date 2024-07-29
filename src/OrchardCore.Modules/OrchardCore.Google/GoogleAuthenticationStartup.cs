@@ -26,11 +26,11 @@ using OrchardCore.Settings.Deployment;
 namespace OrchardCore.Google
 {
     [Feature(GoogleConstants.Features.GoogleAuthentication)]
-    public class GoogleAuthenticationStartup : StartupBase
+    public sealed class GoogleAuthenticationStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
-            services.AddScoped<IPermissionProvider, Permissions.GoogleAuthentication>();
+            services.AddScoped<IPermissionProvider, GoogleAuthenticationPermissionProvider>();
             services.AddSingleton<GoogleAuthenticationService, GoogleAuthenticationService>();
             services.AddScoped<IDisplayDriver<ISite>, GoogleAuthenticationSettingsDisplayDriver>();
             services.AddScoped<INavigationProvider, GoogleAuthenticationAdminMenu>();
@@ -41,7 +41,7 @@ namespace OrchardCore.Google
                 ServiceDescriptor.Transient<IConfigureOptions<AuthenticationOptions>, GoogleOptionsConfiguration>(),
                 ServiceDescriptor.Transient<IConfigureOptions<GoogleOptions>, GoogleOptionsConfiguration>(),
                 // Built-in initializers:
-                ServiceDescriptor.Transient<IPostConfigureOptions<GoogleOptions>, OAuthPostConfigureOptions<GoogleOptions,GoogleHandler>>()
+                ServiceDescriptor.Transient<IPostConfigureOptions<GoogleOptions>, OAuthPostConfigureOptions<GoogleOptions, GoogleHandler>>()
             });
 
             services.AddTransient<IConfigureOptions<GoogleAuthenticationSettings>, GoogleAuthenticationSettingsConfiguration>();
@@ -49,42 +49,42 @@ namespace OrchardCore.Google
     }
 
     [Feature(GoogleConstants.Features.GoogleAnalytics)]
-    public class GoogleAnalyticsStartup : StartupBase
+    public sealed class GoogleAnalyticsStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
-            services.AddScoped<IPermissionProvider, Permissions.GoogleAnalytics>();
+            services.AddScoped<IPermissionProvider, GoogleAnalyticsPermissionsProvider>();
             services.AddSingleton<IGoogleAnalyticsService, GoogleAnalyticsService>();
 
             services.AddScoped<IDisplayDriver<ISite>, GoogleAnalyticsSettingsDisplayDriver>();
             services.AddScoped<INavigationProvider, GoogleAnalyticsAdminMenu>();
             services.Configure<MvcOptions>((options) =>
             {
-                options.Filters.Add(typeof(GoogleAnalyticsFilter));
+                options.Filters.Add<GoogleAnalyticsFilter>();
             });
         }
     }
 
     [Feature(GoogleConstants.Features.GoogleTagManager)]
-    public class GoogleTagManagerStartup : StartupBase
+    public sealed class GoogleTagManagerStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
-            services.AddScoped<IPermissionProvider, Permissions.GoogleTagManager>();
+            services.AddScoped<IPermissionProvider, GoogleTagManagerPermissionProvider>();
             services.AddSingleton<IGoogleTagManagerService, GoogleTagManagerService>();
 
             services.AddScoped<IDisplayDriver<ISite>, GoogleTagManagerSettingsDisplayDriver>();
             services.AddScoped<INavigationProvider, GoogleTagManagerAdminMenu>();
             services.Configure<MvcOptions>((options) =>
             {
-                options.Filters.Add(typeof(GoogleTagManagerFilter));
+                options.Filters.Add<GoogleTagManagerFilter>();
             });
         }
     }
 
     [Feature(GoogleConstants.Features.GoogleAuthentication)]
     [RequireFeatures("OrchardCore.Deployment")]
-    public class GoogleAuthenticationDeploymentStartup : StartupBase
+    public sealed class GoogleAuthenticationDeploymentStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
@@ -94,7 +94,7 @@ namespace OrchardCore.Google
 
     [Feature(GoogleConstants.Features.GoogleAnalytics)]
     [RequireFeatures("OrchardCore.Deployment")]
-    public class GoogleAnalyticsDeploymentStartup : StartupBase
+    public sealed class GoogleAnalyticsDeploymentStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
@@ -104,7 +104,7 @@ namespace OrchardCore.Google
 
     [Feature(GoogleConstants.Features.GoogleTagManager)]
     [RequireFeatures("OrchardCore.Deployment")]
-    public class GoogleTagManagerDeploymentStartup : StartupBase
+    public sealed class GoogleTagManagerDeploymentStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {

@@ -4,6 +4,7 @@ using OrchardCore.ContentManagement.GraphQL.Options;
 using OrchardCore.ContentManagement.GraphQL.Queries;
 using OrchardCore.ContentManagement.GraphQL.Queries.Types;
 using OrchardCore.ContentManagement.Records;
+using OrchardCore.ContentTypes.Events;
 using OrchardCore.Security.Permissions;
 using YesSql.Indexes;
 
@@ -15,7 +16,7 @@ namespace OrchardCore.ContentManagement.GraphQL
         {
             services.AddSingleton<ISchemaBuilder, ContentItemQuery>();
             services.AddSingleton<ISchemaBuilder, ContentTypeQuery>();
-            services.AddSingleton<ContentItemInterface>();
+            services.AddTransient<ContentItemInterface>();
 
             services.AddTransient<ContentItemType>();
 
@@ -23,7 +24,7 @@ namespace OrchardCore.ContentManagement.GraphQL
 
             services.AddTransient<DynamicPartGraphType>();
             services.AddScoped<IContentTypeBuilder, TypedContentTypeBuilder>();
-            services.AddScoped<IContentTypeBuilder, DynamicContentTypeBuilder>();
+            services.AddScoped<IContentTypeBuilder, DynamicContentTypeQueryBuilder>();
 
             services.AddOptions<GraphQLContentOptions>();
             services.AddGraphQLFilterType<ContentItem, ContentItemFilters>();
@@ -32,14 +33,23 @@ namespace OrchardCore.ContentManagement.GraphQL
             return services;
         }
 
-        public static void AddWhereInputIndexPropertyProvider<IIndexType>(this IServiceCollection services)
-            where IIndexType : MapIndex
+        public static IServiceCollection AddContentFieldsInputGraphQL(this IServiceCollection services)
         {
-            services.AddSingleton<IIndexPropertyProvider, IndexPropertyProvider<IIndexType>>();
+            services.AddScoped<IIndexAliasProvider, DynamicContentFieldsIndexAliasProvider>();
+            services.AddScoped<IContentTypeBuilder, DynamicContentTypeWhereInputBuilder>();
+            services.AddScoped<IContentDefinitionEventHandler, DynamicContentFieldsIndexAliasProvider>();
+
+            return services;
+        }
+
+        public static void AddWhereInputIndexPropertyProvider<TIndexType>(this IServiceCollection services)
+            where TIndexType : MapIndex
+        {
+            services.AddSingleton<IIndexPropertyProvider, IndexPropertyProvider<TIndexType>>();
         }
 
         /// <summary>
-        /// Registers a type providing custom filters for content item filters
+        /// Registers a type providing custom filters for content item filters.
         /// </summary>
         /// <typeparam name="TObjectTypeToFilter"></typeparam>
         /// <typeparam name="TFilterType"></typeparam>

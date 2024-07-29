@@ -1,8 +1,11 @@
 using System;
 using System.Linq;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,7 +21,7 @@ using StackExchange.Redis;
 
 namespace OrchardCore.Redis
 {
-    public class Startup : StartupBase
+    public sealed class Startup : StartupBase
     {
         private readonly string _tenant;
         private readonly IShellConfiguration _configuration;
@@ -35,9 +38,16 @@ namespace OrchardCore.Redis
         {
             try
             {
-                var configuration = _configuration["OrchardCore_Redis:Configuration"];
+                var section = _configuration.GetSection("OrchardCore_Redis");
+
+                var configuration = section["Configuration"];
                 var configurationOptions = ConfigurationOptions.Parse(configuration);
-                var instancePrefix = _configuration["OrchardCore_Redis:InstancePrefix"];
+                var instancePrefix = section["InstancePrefix"];
+
+                if (section.GetValue("DisableCertificateVerification", false))
+                {
+                    configurationOptions.CertificateValidation += IgnoreCertificateErrors;
+                }
 
                 services.Configure<RedisOptions>(options =>
                 {
@@ -56,10 +66,15 @@ namespace OrchardCore.Redis
             services.AddSingleton<IModularTenantEvents>(sp => sp.GetRequiredService<IRedisService>());
             services.AddSingleton<IRedisDatabaseFactory, RedisDatabaseFactory>();
         }
+
+        // Callback for accepting any certificate as long as it exists, while ignoring other SSL policy errors.
+        // This allows the use of self-signed certificates on the Redis server.
+        private static bool IgnoreCertificateErrors(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+            => (sslPolicyErrors & SslPolicyErrors.RemoteCertificateNotAvailable) == 0;
     }
 
     [Feature("OrchardCore.Redis.Cache")]
-    public class RedisCacheStartup : StartupBase
+    public sealed class RedisCacheStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
@@ -73,7 +88,7 @@ namespace OrchardCore.Redis
     }
 
     [Feature("OrchardCore.Redis.Bus")]
-    public class RedisBusStartup : StartupBase
+    public sealed class RedisBusStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
@@ -85,7 +100,7 @@ namespace OrchardCore.Redis
     }
 
     [Feature("OrchardCore.Redis.Lock")]
-    public class RedisLockStartup : StartupBase
+    public sealed class RedisLockStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {
@@ -97,7 +112,7 @@ namespace OrchardCore.Redis
     }
 
     [Feature("OrchardCore.Redis.DataProtection")]
-    public class RedisDataProtectionStartup : StartupBase
+    public sealed class RedisDataProtectionStartup : StartupBase
     {
         public override void ConfigureServices(IServiceCollection services)
         {

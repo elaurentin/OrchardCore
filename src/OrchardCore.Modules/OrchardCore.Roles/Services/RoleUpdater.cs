@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -22,7 +23,7 @@ namespace OrchardCore.Roles.Services
         private readonly ITypeFeatureProvider _typeFeatureProvider;
         private readonly ILogger _logger;
 
-        private readonly HashSet<string> _installedFeatures = new();
+        private readonly HashSet<string> _installedFeatures = [];
 
         public RoleUpdater(
             ShellDescriptor shellDescriptor,
@@ -53,7 +54,7 @@ namespace OrchardCore.Roles.Services
             _installedFeatures.Add(feature.Id);
 
             var providers = _permissionProviders
-                .Where(provider => _typeFeatureProvider.GetFeatureForDependency(provider.GetType()).Id == feature.Id);
+                .Where(provider => _typeFeatureProvider.GetFeaturesForDependency(provider.GetType()).Any(p => p.Id == feature.Id));
 
             if (!providers.Any())
             {
@@ -67,13 +68,13 @@ namespace OrchardCore.Roles.Services
                 var stereotypes = provider.GetDefaultStereotypes();
                 foreach (var stereotype in stereotypes)
                 {
-                    var role = rolesDocument.Roles.FirstOrDefault(role => role.RoleName == stereotype.Name);
+                    var role = rolesDocument.Roles.FirstOrDefault(role => string.Equals(role.RoleName, stereotype.Name, StringComparison.OrdinalIgnoreCase));
                     if (role == null)
                     {
                         continue;
                     }
 
-                    var permissions = (stereotype.Permissions ?? Enumerable.Empty<Permission>())
+                    var permissions = (stereotype.Permissions ?? [])
                         .Select(stereotype => stereotype.Name);
 
                     if (UpdateRole(role, permissions, _logger))
@@ -97,7 +98,7 @@ namespace OrchardCore.Roles.Services
             }
 
             var providers = _permissionProviders
-                .Where(provider => _typeFeatureProvider.GetFeatureForDependency(provider.GetType()).Id == feature.Id);
+                .Where(provider => _typeFeatureProvider.GetFeaturesForDependency(provider.GetType()).Any(p => p.Id == feature.Id));
 
             if (!providers.Any())
             {
@@ -129,7 +130,7 @@ namespace OrchardCore.Roles.Services
         private async Task UpdateRoleForInstalledFeaturesAsync(string roleName)
         {
             var rolesDocument = await _documentManager.GetOrCreateMutableAsync();
-            var role = rolesDocument.Roles.FirstOrDefault(role => role.RoleName == roleName);
+            var role = rolesDocument.Roles.FirstOrDefault(role => string.Equals(role.RoleName, roleName, StringComparison.OrdinalIgnoreCase));
             if (role == null)
             {
                 return;
@@ -143,15 +144,15 @@ namespace OrchardCore.Roles.Services
 
             // And defining at least one 'IPermissionProvider'.
             rolesDocument.MissingFeaturesByRole[roleName] = (await _extensionManager.LoadFeaturesAsync(missingFeatures))
-                .Where(entry => entry.ExportedTypes.Any(type => type.IsAssignableTo(typeof(IPermissionProvider))))
-                .Select(entry => entry.FeatureInfo.Id)
+                .Where(entry => _typeFeatureProvider.GetTypesForFeature(entry).Any(type => type.IsAssignableTo(typeof(IPermissionProvider))))
+                .Select(entry => entry.Id)
                 .ToList();
 
             await _documentManager.UpdateAsync(rolesDocument);
 
             var stereotypes = _permissionProviders
                 .SelectMany(provider => provider.GetDefaultStereotypes())
-                .Where(stereotype => stereotype.Name == roleName);
+                .Where(stereotype => string.Equals(stereotype.Name, roleName, StringComparison.OrdinalIgnoreCase));
 
             if (!stereotypes.Any())
             {
@@ -159,7 +160,7 @@ namespace OrchardCore.Roles.Services
             }
 
             var permissions = stereotypes
-                .SelectMany(stereotype => stereotype.Permissions ?? Enumerable.Empty<Permission>())
+                .SelectMany(stereotype => stereotype.Permissions ?? [])
                 .Select(stereotype => stereotype.Name);
 
             UpdateRole(role, permissions, _logger);
@@ -179,7 +180,7 @@ namespace OrchardCore.Roles.Services
         {
             var stereotypes = providers
                 .SelectMany(provider => provider.GetDefaultStereotypes())
-                .Where(stereotype => stereotype.Name == role.RoleName);
+                .Where(stereotype => string.Equals(stereotype.Name, role.RoleName, StringComparison.OrdinalIgnoreCase));
 
             if (!stereotypes.Any())
             {
@@ -187,7 +188,7 @@ namespace OrchardCore.Roles.Services
             }
 
             var permissions = stereotypes
-                .SelectMany(stereotype => stereotype.Permissions ?? Enumerable.Empty<Permission>())
+                .SelectMany(stereotype => stereotype.Permissions ?? [])
                 .Select(stereotype => stereotype.Name);
 
             if (!permissions.Any())

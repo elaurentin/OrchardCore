@@ -1,8 +1,9 @@
 using System;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.Options;
+using OrchardCore.Json;
 using OrchardCore.Recipes.Models;
 using OrchardCore.Recipes.Services;
 using OrchardCore.Sitemaps.Models;
@@ -13,18 +14,17 @@ namespace OrchardCore.Sitemaps.Recipes
     /// <summary>
     /// This recipe step creates a set of sitemaps.
     /// </summary>
-    public class SitemapsStep : IRecipeStepHandler
+    public sealed class SitemapsStep : IRecipeStepHandler
     {
-        private static readonly JsonSerializer _serializer = new()
-        {
-            TypeNameHandling = TypeNameHandling.Auto
-        };
-
         private readonly ISitemapManager _sitemapManager;
+        private readonly DocumentJsonSerializerOptions _documentJsonSerializerOptions;
 
-        public SitemapsStep(ISitemapManager sitemapManager)
+        public SitemapsStep(
+            ISitemapManager sitemapManager,
+            IOptions<DocumentJsonSerializerOptions> documentJsonSerializerOptions)
         {
             _sitemapManager = sitemapManager;
+            _documentJsonSerializerOptions = documentJsonSerializerOptions.Value;
         }
 
         public async Task ExecuteAsync(RecipeExecutionContext context)
@@ -36,16 +36,16 @@ namespace OrchardCore.Sitemaps.Recipes
 
             var model = context.Step.ToObject<SitemapStepModel>();
 
-            foreach (var token in model.Data.Cast<JObject>())
+            foreach (var token in model.Data.Cast<JsonObject>())
             {
-                var sitemap = token.ToObject<SitemapType>(_serializer);
+                var sitemap = token.ToObject<SitemapType>(_documentJsonSerializerOptions.SerializerOptions);
                 await _sitemapManager.UpdateSitemapAsync(sitemap);
             }
         }
 
-        public class SitemapStepModel
+        public sealed class SitemapStepModel
         {
-            public JArray Data { get; set; }
+            public JsonArray Data { get; set; }
         }
     }
 }

@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +6,6 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json.Linq;
 using OrchardCore.ContentManagement;
 using OrchardCore.ContentManagement.Handlers;
 using OrchardCore.DisplayManagement;
@@ -49,7 +47,6 @@ namespace OrchardCore.Seo.Drivers
             {
                 // This handlers provides defaults, either from the Seo Meta Settings, or ensures values by default. (title etc)
                 _contentManager ??= _httpContextAccessor.HttpContext.RequestServices.GetRequiredService<IContentManager>();
-
                 var siteSettings = await _siteService.GetSiteSettingsAsync();
                 var metaSettings = siteSettings.As<ContentItem>("SocialMetaSettings");
 
@@ -66,13 +63,13 @@ namespace OrchardCore.Seo.Drivers
                 // Logic is this happens last after the part settings.
                 // so if values are not set it is responsible for settings them.
 
-                string defaultImage = (metaSettings.Content.SocialMetaSettings?.DefaultSocialImage?.Paths as JArray)?.Count > 0 ? metaSettings.Content.SocialMetaSettings.DefaultSocialImage.Paths[0].ToString() : string.Empty;
-                string openGraphImage = (metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.Paths as JArray)?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.Paths[0]?.ToString() : string.Empty;
-                string twitterImage = (metaSettings.Content.SocialMetaSettings?.TwitterImage?.Paths as JArray)?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.TwitterImage?.Paths[0]?.ToString() : string.Empty;
+                string defaultImage = metaSettings.Content.SocialMetaSettings?.DefaultSocialImage?.Paths?.Count > 0 ? metaSettings.Content.SocialMetaSettings.DefaultSocialImage.Paths[0] : string.Empty;
+                string openGraphImage = metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.Paths?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.Paths[0] : string.Empty;
+                string twitterImage = metaSettings.Content.SocialMetaSettings?.TwitterImage?.Paths?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.TwitterImage?.Paths[0] : string.Empty;
 
-                string defaultAltText = (metaSettings.Content.SocialMetaSettings?.DefaultSocialImage?.MediaTexts as JArray)?.Count > 0 ? metaSettings.Content.SocialMetaSettings.DefaultSocialImage.MediaTexts[0].ToString() : string.Empty;
-                string openGraphAltText = (metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.MediaTexts as JArray)?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.MediaTexts[0]?.ToString() : string.Empty;
-                string twitterAltText = (metaSettings.Content.SocialMetaSettings?.TwitterImage?.MediaTexts as JArray)?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.TwitterImage?.MediaTexts[0]?.ToString() : string.Empty;
+                string defaultAltText = metaSettings.Content.SocialMetaSettings?.DefaultSocialImage?.MediaTexts?.Count > 0 ? metaSettings.Content.SocialMetaSettings.DefaultSocialImage.MediaTexts[0] : string.Empty;
+                string openGraphAltText = metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.MediaTexts?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.OpenGraphImage?.MediaTexts[0] : string.Empty;
+                string twitterAltText = metaSettings.Content.SocialMetaSettings?.TwitterImage?.MediaTexts?.Count > 0 ? metaSettings.Content.SocialMetaSettings?.TwitterImage?.MediaTexts[0] : string.Empty;
 
                 string twitterCard = metaSettings.Content.SocialMetaSettings?.TwitterCard?.Text?.ToString();
                 string twitterCreator = metaSettings.Content.SocialMetaSettings?.TwitterCreator?.Text?.ToString();
@@ -108,7 +105,7 @@ namespace OrchardCore.Seo.Drivers
 
                 if (string.IsNullOrEmpty(aspect.OpenGraphSiteName))
                 {
-                    aspect.OpenGraphSiteName = metaSettings.Content.SocialMetaSettings?.OpenGraphSiteName?.Text.ToString();
+                    aspect.OpenGraphSiteName = metaSettings.Content.SocialMetaSettings?.OpenGraphSiteName?.Text?.ToString();
                     if (string.IsNullOrEmpty(aspect.OpenGraphSiteName))
                     {
                         aspect.OpenGraphSiteName = siteSettings.SiteName;
@@ -117,7 +114,7 @@ namespace OrchardCore.Seo.Drivers
 
                 if (string.IsNullOrEmpty(aspect.OpenGraphAppId))
                 {
-                    aspect.OpenGraphAppId = metaSettings.Content.SocialMetaSettings?.OpenGraphAppId?.Text.ToString();
+                    aspect.OpenGraphAppId = metaSettings.Content.SocialMetaSettings?.OpenGraphAppId?.Text?.ToString();
                 }
 
                 if (string.IsNullOrEmpty(aspect.OpenGraphImage))

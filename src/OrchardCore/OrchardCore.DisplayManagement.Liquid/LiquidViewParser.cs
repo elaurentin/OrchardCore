@@ -15,6 +15,7 @@ namespace OrchardCore.DisplayManagement.Liquid
     public class LiquidViewParser : FluidParser
     {
         public LiquidViewParser(IOptions<LiquidViewOptions> liquidViewOptions)
+            : base(new FluidParserOptions() { AllowFunctions = true })
         {
             RegisterEmptyTag("render_body", RenderBodyTag.WriteToAsync);
             RegisterParserTag("render_section", ArgumentsList, RenderSectionTag.WriteToAsync);
@@ -49,7 +50,7 @@ namespace OrchardCore.DisplayManagement.Liquid
             RegisterParserTag("shape", ArgumentsList, ShapeTag.WriteToAsync);
             RegisterParserBlock("zone", ArgumentsList, ZoneTag.WriteToAsync);
 
-            RegisteredTags["a"] = ArgumentsList.AndSkip(TagEnd).And(Parsers.ZeroOrOne(AnyTagsList.AndSkip(CreateTag("enda")))).Then<Statement>(x => new ParserBlockStatement<List<FilterArgument>>(x.Item1, x.Item2, DefaultAnchorTag.WriteToAsync));
+            RegisteredTags["a"] = ArgumentsList.AndSkip(TagEnd).And(Parsers.ZeroOrOne(AnyTagsList.AndSkip(CreateTag("enda")))).Then<Statement>(x => new ParserBlockStatement<IReadOnlyList<FilterArgument>>(x.Item1, x.Item2, DefaultAnchorTag.WriteToAsync));
             RegisterParserBlock("form", ArgumentsList, (list, statements, writer, encoder, context) => FluidTagHelper.WriteToAsync("form", list, statements, writer, encoder, context));
 
             // Dynamic caching
@@ -65,16 +66,20 @@ namespace OrchardCore.DisplayManagement.Liquid
             }
         }
 
-        public Parser<List<FilterArgument>> ArgumentsListParser => ArgumentsList;
+        public Parser<IReadOnlyList<FilterArgument>> ArgumentsListParser
+            => ArgumentsList;
 
         internal sealed class ParserBlockStatement<T> : TagStatement
         {
             private readonly Func<T, IReadOnlyList<Statement>, TextWriter, TextEncoder, TemplateContext, ValueTask<Completion>> _render;
 
-            public ParserBlockStatement(T value, List<Statement> statements, Func<T, IReadOnlyList<Statement>, TextWriter, TextEncoder, TemplateContext, ValueTask<Completion>> render) : base(statements)
+            public ParserBlockStatement(T value, IReadOnlyList<Statement> statements, Func<T, IReadOnlyList<Statement>, TextWriter, TextEncoder, TemplateContext, ValueTask<Completion>> render)
+                : base(statements)
             {
+                ArgumentNullException.ThrowIfNull(render);
+
                 Value = value;
-                _render = render ?? throw new ArgumentNullException(nameof(render));
+                _render = render;
             }
 
             public T Value { get; }

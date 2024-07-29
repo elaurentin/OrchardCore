@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Mvc.Razor.Compilation;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using OrchardCore.DisplayManagement.Descriptors.ShapeTemplateStrategy;
 using OrchardCore.DisplayManagement.Liquid;
@@ -67,6 +68,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     o.MemberAccessStrategy.Register<Shape>("*", new ShapeAccessor());
                     o.MemberAccessStrategy.Register<ZoneHolding>("*", new ShapeAccessor());
                     o.MemberAccessStrategy.Register<ShapeMetadata>();
+                    o.MemberAccessStrategy.Register<CultureInfo>();
 
                     o.Scope.SetValue("Culture", new ObjectValue(new LiquidCultureAccessor()));
                     o.MemberAccessStrategy.Register<LiquidCultureAccessor, FluidValue>((obj, name, ctx) =>
@@ -75,8 +77,31 @@ namespace Microsoft.Extensions.DependencyInjection
                         {
                             nameof(CultureInfo.Name) => new StringValue(CultureInfo.CurrentUICulture.Name),
                             "Dir" => new StringValue(CultureInfo.CurrentUICulture.GetLanguageDirection()),
+                            nameof(CultureInfo.NativeName) => new StringValue(CultureInfo.CurrentUICulture.NativeName),
+                            nameof(CultureInfo.DisplayName) => new StringValue(CultureInfo.CurrentUICulture.DisplayName),
+                            nameof(CultureInfo.TwoLetterISOLanguageName) => new StringValue(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName),
                             _ => NilValue.Instance
                         };
+                    });
+
+                    o.Scope.SetValue("Environment", new ObjectValue(new LiquidEnvironmentAccessor()));
+                    o.MemberAccessStrategy.Register<LiquidEnvironmentAccessor, FluidValue>((obj, name, ctx) =>
+                    {
+                        var hostEnvironment = ((LiquidTemplateContext)ctx).Services.GetRequiredService<IHostEnvironment>();
+
+                        if (hostEnvironment != null)
+                        {
+                            return name switch
+                            {
+                                "IsDevelopment" => BooleanValue.Create(hostEnvironment.IsDevelopment()),
+                                "IsStaging" => BooleanValue.Create(hostEnvironment.IsStaging()),
+                                "IsProduction" => BooleanValue.Create(hostEnvironment.IsProduction()),
+                                "Name" => StringValue.Create(hostEnvironment.EnvironmentName),
+                                _ => NilValue.Instance
+                            };
+                        }
+
+                        return NilValue.Instance;
                     });
 
                     o.Scope.SetValue("Request", new ObjectValue(new LiquidRequestAccessor()));
@@ -136,7 +161,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     {
                         if (name == "Keys")
                         {
-                            return new ArrayValue(forms.Keys.Select(x => new StringValue(x)));
+                            return new ArrayValue(forms.Keys.Select(x => new StringValue(x)).ToArray());
                         }
 
                         return new ArrayValue(forms[name].Select(x => new StringValue(x)).ToArray());
@@ -147,17 +172,17 @@ namespace Microsoft.Extensions.DependencyInjection
                     o.MemberAccessStrategy.Register<CookieCollectionWrapper, string>((cookies, name) => cookies.RequestCookieCollection[name]);
                     o.MemberAccessStrategy.Register<HeaderDictionaryWrapper, string[]>((headers, name) => headers.HeaderDictionary[name].ToArray());
                     o.MemberAccessStrategy.Register<RouteValueDictionaryWrapper, object>((headers, name) => headers.RouteValueDictionary[name]);
-
                 })
                 .AddLiquidFilter<AppendVersionFilter>("append_version")
                 .AddLiquidFilter<ResourceUrlFilter>("resource_url")
-                .AddLiquidFilter<SanitizeHtmlFilter>("sanitize_html");
+                .AddLiquidFilter<SanitizeHtmlFilter>("sanitize_html")
+                .AddLiquidFilter<SupportedCulturesFilter>("supported_cultures");
             });
 
             return builder;
         }
 
-        private class CookieCollectionWrapper
+        private sealed class CookieCollectionWrapper
         {
             public readonly IRequestCookieCollection RequestCookieCollection;
 
@@ -167,7 +192,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private class HeaderDictionaryWrapper
+        private sealed class HeaderDictionaryWrapper
         {
             public readonly IHeaderDictionary HeaderDictionary;
 
@@ -177,7 +202,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private class HttpContextItemsWrapper
+        private sealed class HttpContextItemsWrapper
         {
             public readonly IDictionary<object, object> Items;
 
@@ -187,7 +212,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private class RouteValueDictionaryWrapper
+        private sealed class RouteValueDictionaryWrapper
         {
             public readonly IReadOnlyDictionary<string, object> RouteValueDictionary;
 

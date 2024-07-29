@@ -10,8 +10,10 @@ using OrchardCore.Data.Documents;
 using OrchardCore.Data.Migration;
 using OrchardCore.Data.YesSql;
 using OrchardCore.Environment.Shell;
+using OrchardCore.Environment.Shell.Configuration;
 using OrchardCore.Environment.Shell.Removing;
 using OrchardCore.Environment.Shell.Scope;
+using OrchardCore.Json;
 using OrchardCore.Modules;
 using YesSql;
 using YesSql.Indexes;
@@ -19,6 +21,7 @@ using YesSql.Provider.MySql;
 using YesSql.Provider.PostgreSql;
 using YesSql.Provider.Sqlite;
 using YesSql.Provider.SqlServer;
+using YesSql.Serialization;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -35,8 +38,11 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             builder.ApplicationServices.AddSingleton<IShellRemovingHandler, ShellDbTablesRemovingHandler>();
 
-            builder.ConfigureServices(services =>
+            builder.ConfigureServices((services, serviceProvider) =>
             {
+                var configuration = serviceProvider.GetService<IShellConfiguration>();
+
+                services.Configure<YesSqlOptions>(configuration.GetSection("OrchardCore_YesSql"));
                 services.AddScoped<IDbConnectionValidator, DbConnectionValidator>();
                 services.AddScoped<IDataMigrationManager, DataMigrationManager>();
                 services.AddScoped<IModularTenantEvents, AutomaticDataMigrations>();
@@ -62,6 +68,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     }
 
                     var yesSqlOptions = sp.GetService<IOptions<YesSqlOptions>>().Value;
+
                     var databaseTableOptions = shellSettings.GetDatabaseTableOptions();
                     var storeConfiguration = GetStoreConfiguration(sp, yesSqlOptions, databaseTableOptions);
 
@@ -79,7 +86,9 @@ namespace Microsoft.Extensions.DependencyInjection
                             var databaseFolder = SqliteHelper.GetDatabaseFolder(shellOptions, shellSettings.Name);
                             Directory.CreateDirectory(databaseFolder);
 
-                            var connectionString = SqliteHelper.GetConnectionString(sqliteOptions, databaseFolder);
+                            // Only allow creating a file DB when a tenant is in the Initializing state
+                            var connectionString = SqliteHelper.GetConnectionString(sqliteOptions, databaseFolder, shellSettings);
+
                             storeConfiguration
                                 .UseSqLite(connectionString, IsolationLevel.ReadUncommitted)
                                 .UseDefaultIdGenerator();
@@ -176,14 +185,17 @@ namespace Microsoft.Extensions.DependencyInjection
             var tableNameFactory = sp.GetRequiredService<ITableNameConventionFactory>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
+            var serializerOptions = sp.GetRequiredService<IOptions<DocumentJsonSerializerOptions>>();
+
             var storeConfiguration = new YesSql.Configuration
             {
                 CommandsPageSize = yesSqlOptions.CommandsPageSize,
                 QueryGatingEnabled = yesSqlOptions.QueryGatingEnabled,
-                ContentSerializer = new PoolingJsonContentSerializer(sp.GetService<ArrayPool<char>>()),
+                EnableThreadSafetyChecks = yesSqlOptions.EnableThreadSafetyChecks,
                 TableNameConvention = tableNameFactory.Create(databaseTableOptions),
                 IdentityColumnSize = Enum.Parse<IdentityColumnSize>(databaseTableOptions.IdentityColumnSize),
                 Logger = loggerFactory.CreateLogger("YesSql"),
+                ContentSerializer = new DefaultContentJsonSerializer(serializerOptions.Value.SerializerOptions),
             };
 
             if (yesSqlOptions.IdGenerator != null)
